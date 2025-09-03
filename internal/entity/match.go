@@ -31,6 +31,9 @@ type PlayerMatchSummary struct {
 	// HeadshotsPercentage represents the percentage of kills that were
 	// headshots.  A value of zero means the data was unavailable.
 	HeadshotsPercentage float64
+	// ADR represents the average damage per round for the match.
+	// A value of zero means the data was unavailable.
+	ADR float64
 	// Result is "Win" when the player's team won the match and
 	// "Loss" otherwise.
 	Result string

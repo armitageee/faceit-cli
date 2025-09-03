@@ -228,7 +228,7 @@ func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID 
 		// request.  This ensures that at least minimal information is
 		// returned to the user.
 		var kills, deaths, assists int
-		var kdRatio, hsPerc float64
+		var kdRatio, hsPerc, adr float64
 		stats, _, err := r.client.MatchesApi.GetMatchStats(ctx, item.MatchId)
 		if err != nil {
 			// Log the error and continue without stats.
@@ -318,6 +318,14 @@ func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID 
 							if v, ok := ps.PlayerStats["Assists"]; ok {
 								assists += toInt(v)
 							}
+							// Extract ADR (Average Damage per Round)
+							if v, ok := ps.PlayerStats["Average Damage per Round"]; ok {
+								adr += toFloat(v)
+							} else if v, ok := ps.PlayerStats["ADR"]; ok {
+								adr += toFloat(v)
+							} else if v, ok := ps.PlayerStats["Avg Damage"]; ok {
+								adr += toFloat(v)
+							}
 						}
 						// Break out after finding the player in this round.
 						found = true
@@ -370,6 +378,7 @@ func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID 
 			Assists:             assists,
 			KDRatio:             kdRatio,
 			HeadshotsPercentage: hsPerc,
+			ADR:                 adr,
 			Result:              result,
 		}
 		results = append(results, summary)

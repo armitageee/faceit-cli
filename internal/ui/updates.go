@@ -1,0 +1,305 @@
+package ui
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	"faceit-cli/internal/entity"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+// updateSearch handles key events in the search state
+func (m AppModel) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "enter":
+		if strings.TrimSpace(m.searchInput) != "" {
+			m.loading = true
+			m.state = StateLoading
+			return m, m.loadPlayerProfile(m.searchInput)
+		}
+	case "backspace":
+		if len(m.searchInput) > 0 {
+			m.searchInput = m.searchInput[:len(m.searchInput)-1]
+		}
+	default:
+		if len(msg.String()) == 1 {
+			m.searchInput += msg.String()
+		}
+	}
+	return m, nil
+}
+
+// updateProfile handles key events in the profile state
+func (m AppModel) updateProfile(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc":
+		m.state = StateSearch
+		m.searchInput = ""
+		return m, nil
+	case "m":
+		// Load recent matches
+		m.loading = true
+		m.state = StateLoading
+		return m, m.loadRecentMatches()
+	case "s":
+		// Load statistics
+		m.loading = true
+		m.state = StateLoading
+		return m, m.loadStatistics()
+	case "p":
+		// Switch player
+		m.state = StatePlayerSwitch
+		m.playerSwitchInput = ""
+		return m, nil
+	}
+	return m, nil
+}
+
+// updatePlayerSwitch handles key events in the player switch state
+func (m AppModel) updatePlayerSwitch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc":
+		m.state = StateProfile
+		m.playerSwitchInput = ""
+		return m, nil
+	case "enter":
+		if m.playerSwitchInput != "" {
+			// Add current player to recent players if not already there
+			if m.player != nil {
+				m.addToRecentPlayers(m.player.Nickname)
+			}
+			// Switch to new player
+			m.searchInput = m.playerSwitchInput
+			m.state = StateLoading
+			m.loading = true
+			return m, m.loadPlayerProfile(m.playerSwitchInput)
+		}
+		return m, nil
+	case "backspace":
+		if len(m.playerSwitchInput) > 0 {
+			m.playerSwitchInput = m.playerSwitchInput[:len(m.playerSwitchInput)-1]
+		}
+		return m, nil
+	default:
+		if len(msg.String()) == 1 {
+			m.playerSwitchInput += msg.String()
+		}
+		return m, nil
+	}
+}
+
+// updateMatches handles key events in the matches state
+func (m AppModel) updateMatches(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc":
+		m.state = StateProfile
+		return m, nil
+	case "up", "k":
+		// Navigate to previous match
+		if m.selectedMatchIndex > 0 {
+			m.selectedMatchIndex--
+		}
+		return m, nil
+	case "down", "j":
+		// Navigate to next match
+		if m.selectedMatchIndex < len(m.matches)-1 {
+			m.selectedMatchIndex++
+		}
+		return m, nil
+	case "enter", "d":
+		// Load detailed view of the selected match
+		if len(m.matches) > 0 && m.selectedMatchIndex < len(m.matches) {
+			m.loading = true
+			m.state = StateLoading
+			return m, m.loadMatchDetail(m.matches[m.selectedMatchIndex].MatchID)
+		}
+	}
+	return m, nil
+}
+
+// updateStats handles key events in the stats state
+func (m AppModel) updateStats(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc":
+		m.state = StateProfile
+		return m, nil
+	}
+	return m, nil
+}
+
+// updateMatchDetail handles key events in the match detail state
+func (m AppModel) updateMatchDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc":
+		m.state = StateMatches
+		return m, nil
+	}
+	return m, nil
+}
+
+// updateError handles key events in the error state
+func (m AppModel) updateError(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc", "enter":
+		m.state = StateSearch
+		m.error = ""
+		return m, nil
+	}
+	return m, nil
+}
+
+// loadPlayerProfile loads a player profile asynchronously
+func (m AppModel) loadPlayerProfile(nickname string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		profile, err := m.repo.GetPlayerByNickname(ctx, nickname)
+		if err != nil {
+			return errorMsg{err: err.Error()}
+		}
+		return profileLoadedMsg{profile: *profile}
+	}
+}
+
+// loadRecentMatches loads recent matches asynchronously
+func (m AppModel) loadRecentMatches() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", 10)
+		if err != nil {
+			return errorMsg{err: err.Error()}
+		}
+		return matchesLoadedMsg{matches: matches}
+	}
+}
+
+// loadStatistics loads and calculates statistics from recent matches
+func (m AppModel) loadStatistics() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", 20)
+		if err != nil {
+			return errorMsg{err: err.Error()}
+		}
+		
+		stats := calculateStats(matches)
+		return statsLoadedMsg{stats: stats}
+	}
+}
+
+// loadMatchDetail loads detailed statistics for a specific match
+func (m AppModel) loadMatchDetail(matchID string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// Get detailed match stats from repository
+		matchDetail, err := m.getDetailedMatchStats(ctx, matchID)
+		if err != nil {
+			return errorMsg{err: err.Error()}
+		}
+		return matchDetailLoadedMsg{matchDetail: matchDetail}
+	}
+}
+
+// getDetailedMatchStats retrieves and processes detailed match statistics
+func (m AppModel) getDetailedMatchStats(ctx context.Context, matchID string) (MatchDetail, error) {
+	// For now, we'll create a mock detailed match with enhanced statistics
+	// In a real implementation, this would fetch detailed match data from the API
+
+	// Find the match in our recent matches
+	var baseMatch *entity.PlayerMatchSummary
+	for _, match := range m.matches {
+		if match.MatchID == matchID {
+			baseMatch = &match
+			break
+		}
+	}
+
+	if baseMatch == nil {
+		return MatchDetail{}, fmt.Errorf("match not found")
+	}
+
+	// Create detailed match statistics
+	matchDetail := MatchDetail{
+		MatchID:    baseMatch.MatchID,
+		Map:        baseMatch.Map,
+		FinishedAt: baseMatch.FinishedAt,
+		Score:      baseMatch.Score,
+		Result:     baseMatch.Result,
+		PlayerStats: PlayerMatchStats{
+			Kills:               baseMatch.Kills,
+			Deaths:              baseMatch.Deaths,
+			Assists:             baseMatch.Assists,
+			KDRatio:             baseMatch.KDRatio,
+			HeadshotsPercentage: baseMatch.HeadshotsPercentage,
+			ADR:                 m.calculateADR(baseMatch),
+			HLTVRating:          m.calculateHLTVRating(baseMatch),
+			FirstKills:          m.calculateFirstKills(baseMatch),
+			FirstDeaths:         m.calculateFirstDeaths(baseMatch),
+			ClutchWins:          m.calculateClutchWins(baseMatch),
+			EntryFrags:          m.calculateEntryFrags(baseMatch),
+			FlashAssists:        m.calculateFlashAssists(baseMatch),
+			UtilityDamage:       m.calculateUtilityDamage(baseMatch),
+		},
+		TeamStats: TeamStats{
+			PlayerTeamScore: m.extractPlayerTeamScore(baseMatch.Score),
+			EnemyTeamScore:  m.extractEnemyTeamScore(baseMatch.Score),
+		},
+		PerformanceMetrics: PerformanceMetrics{
+			ConsistencyScore: m.calculateConsistencyScore(baseMatch),
+			ImpactScore:      m.calculateImpactScore(baseMatch),
+			ClutchScore:      m.calculateClutchScore(baseMatch),
+			EntryScore:       m.calculateEntryScore(baseMatch),
+			SupportScore:     m.calculateSupportScore(baseMatch),
+		},
+	}
+
+	return matchDetail, nil
+}
+
+// Helper functions for extracting team scores
+func (m AppModel) extractPlayerTeamScore(score string) int {
+	// Parse score like "16-14" and return the first number
+	parts := strings.Split(score, "-")
+	if len(parts) >= 2 {
+		if playerScore, err := strconv.Atoi(strings.TrimSpace(parts[0])); err == nil {
+			return playerScore
+		}
+	}
+	return 0
+}
+
+func (m AppModel) extractEnemyTeamScore(score string) int {
+	// Parse score like "16-14" and return the second number
+	parts := strings.Split(score, "-")
+	if len(parts) >= 2 {
+		if enemyScore, err := strconv.Atoi(strings.TrimSpace(parts[1])); err == nil {
+			return enemyScore
+		}
+	}
+	return 0
+}

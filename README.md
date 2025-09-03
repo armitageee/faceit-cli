@@ -127,7 +127,13 @@ The detailed match view includes:
 ### 📊 Basic Statistics
 - K/D/A ratio and headshot percentage
 - ADR (Average Damage per Round)
-- HLTV Rating calculation
+- **HLTV Rating**: Standard CS:GO/CS2 performance metric
+  - 2.0+ = Incredible performance
+  - 1.5-2.0 = Excellent performance
+  - 1.2-1.5 = Good performance
+  - 1.0-1.2 = Average performance
+  - 0.8-1.0 = Below average
+  - < 0.8 = Poor performance
 
 ### ⚡ Advanced Metrics
 - **First Kills/Deaths**: Opening duels won/lost
