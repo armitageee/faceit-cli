@@ -50,11 +50,32 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
+        token: ${{ secrets.RELEASE_TOKEN }}
         tag_name: ${{ github.ref_name }}
         name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
         generate_release_notes: true
+        body: |
+          ## What's Changed
+          
+          - Full CI/CD pipeline
+          - Multi-platform builds
+          - Automated testing
+          - Code quality checks
+          
+          ## Downloads
+          
+          Download the appropriate binary for your platform:
+          
+          - **Linux (amd64)**: `faceit-cli-linux-amd64`
+          - **Linux (arm64)**: `faceit-cli-linux-arm64`
+          - **Windows (amd64)**: `faceit-cli-windows-amd64.exe`
+          - **macOS (amd64)**: `faceit-cli-darwin-amd64`
+          - **macOS (arm64)**: `faceit-cli-darwin-arm64`
+          
+          ## Verification
+          
+          Verify your download with the checksums in `checksums.txt`.
         files: |
           release/*
-        token: ${{ secrets.RELEASE_TOKEN }}
