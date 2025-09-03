@@ -48,7 +48,9 @@ func (m AppModel) viewProfile() string {
 		}
 	}
 
-	profile := profileStyle.Render(content.String())
+	// Create beautiful ASCII frame
+	framedContent := generateProfileFrame(content.String())
+	profile := profileStyle.Render(framedContent)
 	help := helpStyle.Render("M - Recent matches • S - Statistics (20 matches) • C - Compare with friend • P - Switch player • Esc - Back to search • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,

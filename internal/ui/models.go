@@ -209,9 +209,8 @@ var (
 			Padding(1, 2)
 
 	profileStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#874BFD")).
-			Padding(1, 2)
+			Foreground(lipgloss.Color("#FAFAFA")).
+			Padding(1, 0)
 
 	matchesStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).

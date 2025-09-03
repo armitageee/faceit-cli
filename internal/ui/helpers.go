@@ -393,6 +393,63 @@ func formatComparisonInt(value int, isBetter bool) string {
 	return worseStyle.Render(fmt.Sprintf("%d", value))
 }
 
+// getVisualLength calculates the visual length of a string (counting runes)
+func getVisualLength(s string) int {
+	return len([]rune(s))
+}
+
+// generateProfileFrame generates a beautiful ASCII frame for the profile
+func generateProfileFrame(content string) string {
+	lines := strings.Split(content, "\n")
+	maxWidth := 0
+	for _, line := range lines {
+		visualLen := getVisualLength(line)
+		if visualLen > maxWidth {
+			maxWidth = visualLen
+		}
+	}
+	
+	// Ensure minimum width
+	if maxWidth < 50 {
+		maxWidth = 50
+	}
+	
+	var result strings.Builder
+	
+	// Top border with corners
+	result.WriteString("╔")
+	for i := 0; i < maxWidth+2; i++ {
+		result.WriteString("═")
+	}
+	result.WriteString("╗\n")
+	
+	// Content lines with side borders
+	for _, line := range lines {
+		result.WriteString("║ ")
+		result.WriteString(line)
+		// Pad with spaces to maintain width based on visual length
+		visualLen := getVisualLength(line)
+		// Subtract space for lines with emojis to compensate for emoji width
+		adjustment := 0
+		if strings.Contains(line, "🎯") || strings.Contains(line, "📊") {
+			adjustment = -1
+		}
+		for i := visualLen; i < maxWidth+adjustment; i++ {
+			result.WriteString(" ")
+		}
+		result.WriteString(" ║\n")
+	}
+	
+	// Bottom border with corners
+	result.WriteString("╚")
+	for i := 0; i < maxWidth+2; i++ {
+		result.WriteString("═")
+	}
+	result.WriteString("╝")
+	
+	return result.String()
+}
+
 // extractLifetimeStats extracts key statistics from lifetime stats
 func extractLifetimeStats(stats *entity.PlayerStats) (kdRatio float64, totalMatches int, winRate float64) {
 	if stats == nil || stats.Lifetime == nil {
