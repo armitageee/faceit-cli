@@ -2,6 +2,7 @@ package ui
 
 import (
 	"faceit-cli/internal/entity"
+	"strconv"
 	"strings"
 )
 
@@ -170,20 +171,20 @@ func generateStreakInfo(stats *PlayerStatsSummary) string {
 	
 	if stats.CurrentStreak > 0 {
 		streakInfo.WriteString("🔥 Win Streak: ")
-		streakInfo.WriteString(strings.Repeat("W", stats.CurrentStreak))
+		streakInfo.WriteString(strconv.Itoa(stats.CurrentStreak))
 	} else if stats.CurrentStreak < 0 {
 		streakInfo.WriteString("❄️  Loss Streak: ")
-		streakInfo.WriteString(strings.Repeat("L", -stats.CurrentStreak))
+		streakInfo.WriteString(strconv.Itoa(-stats.CurrentStreak))
 	} else {
 		streakInfo.WriteString("📊 No active streak")
 	}
 	
 	streakInfo.WriteString("\n")
 	streakInfo.WriteString("🏆 Longest Win Streak: ")
-	streakInfo.WriteString(strings.Repeat("W", stats.LongestWinStreak))
+	streakInfo.WriteString(strconv.Itoa(stats.LongestWinStreak))
 	streakInfo.WriteString("\n")
 	streakInfo.WriteString("💔 Longest Loss Streak: ")
-	streakInfo.WriteString(strings.Repeat("L", stats.LongestLossStreak))
+	streakInfo.WriteString(strconv.Itoa(stats.LongestLossStreak))
 	
 	return streakInfo.String()
 }
