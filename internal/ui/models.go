@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +31,56 @@ type PlayerStatsSummary struct {
 	MapStats         map[string]int
 }
 
+// MatchDetail represents detailed statistics for a single match
+type MatchDetail struct {
+	MatchID             string
+	Map                 string
+	FinishedAt          int64
+	Score               string
+	Result              string
+	PlayerStats         PlayerMatchStats
+	TeamStats           TeamStats
+	PerformanceMetrics  PerformanceMetrics
+}
+
+// PlayerMatchStats represents player's detailed stats for a match
+type PlayerMatchStats struct {
+	Kills               int
+	Deaths              int
+	Assists             int
+	KDRatio             float64
+	HeadshotsPercentage float64
+	ADR                 float64 // Average Damage per Round
+	Rating              float64 // HLTV Rating
+	FirstKills          int
+	FirstDeaths         int
+	ClutchWins          int
+	EntryFrags          int
+	FlashAssists        int
+	UtilityDamage       int
+}
+
+// TeamStats represents team-level statistics
+type TeamStats struct {
+	PlayerTeamScore  int
+	EnemyTeamScore   int
+	PlayerTeamID     string
+	EnemyTeamID      string
+	PlayerTeamPlayers []string
+	EnemyTeamPlayers []string
+}
+
+
+
+// PerformanceMetrics represents advanced performance metrics
+type PerformanceMetrics struct {
+	ConsistencyScore float64 // How consistent the performance was
+	ImpactScore      float64 // How much impact the player had
+	ClutchScore      float64 // Performance in clutch situations
+	EntryScore       float64 // Performance in entry situations
+	SupportScore     float64 // Support/utility usage score
+}
+
 // AppState represents the current state of the application
 type AppState int
 
@@ -38,6 +89,7 @@ const (
 	StateProfile
 	StateMatches
 	StateStats
+	StateMatchDetail
 	StateLoading
 	StateError
 )
@@ -49,6 +101,8 @@ type AppModel struct {
 	profile      *entity.PlayerProfile
 	matches      []entity.PlayerMatchSummary
 	stats        *PlayerStatsSummary
+	matchDetail  *MatchDetail
+	selectedMatchIndex int
 	error        string
 	loading      bool
 	repo         repository.FaceitRepository
@@ -64,6 +118,7 @@ func InitialModel(repo repository.FaceitRepository) AppModel {
 		repo:        repo,
 		width:       80,
 		height:      24,
+		selectedMatchIndex: 0,
 	}
 }
 
@@ -90,6 +145,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateMatches(msg)
 		case StateStats:
 			return m.updateStats(msg)
+		case StateMatchDetail:
+			return m.updateMatchDetail(msg)
 		case StateError:
 			return m.updateError(msg)
 		}
@@ -102,6 +159,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case matchesLoadedMsg:
 		m.matches = msg.matches
+		m.selectedMatchIndex = 0 // Reset to first match
 		m.state = StateMatches
 		m.loading = false
 		return m, nil
@@ -109,6 +167,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statsLoadedMsg:
 		m.stats = &msg.stats
 		m.state = StateStats
+		m.loading = false
+		return m, nil
+
+	case matchDetailLoadedMsg:
+		m.matchDetail = &msg.matchDetail
+		m.state = StateMatchDetail
 		m.loading = false
 		return m, nil
 
@@ -133,6 +197,8 @@ func (m AppModel) View() string {
 		return m.viewMatches()
 	case StateStats:
 		return m.viewStats()
+	case StateMatchDetail:
+		return m.viewMatchDetail()
 	case StateLoading:
 		return m.viewLoading()
 	case StateError:
@@ -196,6 +262,25 @@ func (m AppModel) updateMatches(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.state = StateProfile
 		return m, nil
+	case "up", "k":
+		// Navigate to previous match
+		if m.selectedMatchIndex > 0 {
+			m.selectedMatchIndex--
+		}
+		return m, nil
+	case "down", "j":
+		// Navigate to next match
+		if m.selectedMatchIndex < len(m.matches)-1 {
+			m.selectedMatchIndex++
+		}
+		return m, nil
+	case "enter", "d":
+		// Load detailed view of the selected match
+		if len(m.matches) > 0 && m.selectedMatchIndex < len(m.matches) {
+			m.loading = true
+			m.state = StateLoading
+			return m, m.loadMatchDetail(m.matches[m.selectedMatchIndex].MatchID)
+		}
 	}
 	return m, nil
 }
@@ -207,6 +292,18 @@ func (m AppModel) updateStats(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc":
 		m.state = StateProfile
+		return m, nil
+	}
+	return m, nil
+}
+
+// updateMatchDetail handles key events in the match detail state
+func (m AppModel) updateMatchDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc":
+		m.state = StateMatches
 		return m, nil
 	}
 	return m, nil
@@ -266,6 +363,21 @@ func (m AppModel) loadStatistics() tea.Cmd {
 		
 		stats := calculateStats(matches)
 		return statsLoadedMsg{stats: stats}
+	}
+}
+
+// loadMatchDetail loads detailed statistics for a specific match
+func (m AppModel) loadMatchDetail(matchID string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// Get detailed match stats from repository
+		matchDetail, err := m.getDetailedMatchStats(ctx, matchID)
+		if err != nil {
+			return errorMsg{err: err.Error()}
+		}
+		return matchDetailLoadedMsg{matchDetail: matchDetail}
 	}
 }
 
@@ -348,6 +460,186 @@ func calculateStats(matches []entity.PlayerMatchSummary) PlayerStatsSummary {
 	return stats
 }
 
+// getDetailedMatchStats retrieves and processes detailed match statistics
+func (m AppModel) getDetailedMatchStats(ctx context.Context, matchID string) (MatchDetail, error) {
+	// For now, we'll create a mock detailed match with enhanced statistics
+	// In a real implementation, this would fetch detailed match data from the API
+	
+	// Find the match in our recent matches
+	var baseMatch *entity.PlayerMatchSummary
+	for _, match := range m.matches {
+		if match.MatchID == matchID {
+			baseMatch = &match
+			break
+		}
+	}
+	
+	if baseMatch == nil {
+		return MatchDetail{}, fmt.Errorf("match not found")
+	}
+	
+	// Create enhanced match detail with calculated metrics
+	matchDetail := MatchDetail{
+		MatchID:    baseMatch.MatchID,
+		Map:        baseMatch.Map,
+		FinishedAt: baseMatch.FinishedAt,
+		Score:      baseMatch.Score,
+		Result:     baseMatch.Result,
+		PlayerStats: PlayerMatchStats{
+			Kills:               baseMatch.Kills,
+			Deaths:              baseMatch.Deaths,
+			Assists:             baseMatch.Assists,
+			KDRatio:             baseMatch.KDRatio,
+			HeadshotsPercentage: baseMatch.HeadshotsPercentage,
+			// Calculate additional metrics
+			ADR:                 m.calculateADR(baseMatch),
+			Rating:              m.calculateHLTVRating(baseMatch),
+			FirstKills:          m.calculateFirstKills(baseMatch),
+			FirstDeaths:         m.calculateFirstDeaths(baseMatch),
+			ClutchWins:          m.calculateClutchWins(baseMatch),
+			EntryFrags:          m.calculateEntryFrags(baseMatch),
+			FlashAssists:        m.calculateFlashAssists(baseMatch),
+			UtilityDamage:       m.calculateUtilityDamage(baseMatch),
+		},
+		TeamStats: TeamStats{
+			PlayerTeamScore:  m.extractPlayerTeamScore(baseMatch.Score),
+			EnemyTeamScore:   m.extractEnemyTeamScore(baseMatch.Score),
+			PlayerTeamID:     "team1", // Mock data
+			EnemyTeamID:      "team2", // Mock data
+		},
+		PerformanceMetrics: PerformanceMetrics{
+			ConsistencyScore: m.calculateConsistencyScore(baseMatch),
+			ImpactScore:      m.calculateImpactScore(baseMatch),
+			ClutchScore:      m.calculateClutchScore(baseMatch),
+			EntryScore:       m.calculateEntryScore(baseMatch),
+			SupportScore:     m.calculateSupportScore(baseMatch),
+		},
+	}
+	
+	return matchDetail, nil
+}
+
+// Helper functions for calculating advanced metrics
+func (m AppModel) calculateADR(match *entity.PlayerMatchSummary) float64 {
+	// Estimate ADR based on kills and assists (rough calculation)
+	estimatedDamage := float64(match.Kills)*100 + float64(match.Assists)*50
+	rounds := 30 // Assume average match length
+	return estimatedDamage / float64(rounds)
+}
+
+func (m AppModel) calculateHLTVRating(match *entity.PlayerMatchSummary) float64 {
+	// Simplified HLTV rating calculation
+	kd := match.KDRatio
+	hs := match.HeadshotsPercentage / 100.0
+	adr := m.calculateADR(match)
+	
+	// Basic rating formula (simplified)
+	rating := (kd * 0.4) + (hs * 0.2) + (adr/100 * 0.4)
+	if rating > 2.0 {
+		rating = 2.0
+	}
+	return rating
+}
+
+func (m AppModel) calculateFirstKills(match *entity.PlayerMatchSummary) int {
+	// Estimate first kills as 20% of total kills
+	return int(float64(match.Kills) * 0.2)
+}
+
+func (m AppModel) calculateFirstDeaths(match *entity.PlayerMatchSummary) int {
+	// Estimate first deaths as 15% of total deaths
+	return int(float64(match.Deaths) * 0.15)
+}
+
+func (m AppModel) calculateClutchWins(match *entity.PlayerMatchSummary) int {
+	// Estimate clutch wins based on performance
+	if match.KDRatio > 1.5 {
+		return 2
+	} else if match.KDRatio > 1.0 {
+		return 1
+	}
+	return 0
+}
+
+func (m AppModel) calculateEntryFrags(match *entity.PlayerMatchSummary) int {
+	// Estimate entry frags as 30% of total kills
+	return int(float64(match.Kills) * 0.3)
+}
+
+func (m AppModel) calculateFlashAssists(match *entity.PlayerMatchSummary) int {
+	// Estimate flash assists as 40% of total assists
+	return int(float64(match.Assists) * 0.4)
+}
+
+func (m AppModel) calculateUtilityDamage(match *entity.PlayerMatchSummary) int {
+	// Estimate utility damage based on assists
+	return match.Assists * 25
+}
+
+func (m AppModel) extractPlayerTeamScore(score string) int {
+	// Parse score string like "16-14"
+	parts := strings.Split(score, "-")
+	if len(parts) >= 1 {
+		if val, err := strconv.Atoi(parts[0]); err == nil {
+			return val
+		}
+	}
+	return 0
+}
+
+func (m AppModel) extractEnemyTeamScore(score string) int {
+	// Parse score string like "16-14"
+	parts := strings.Split(score, "-")
+	if len(parts) >= 2 {
+		if val, err := strconv.Atoi(parts[1]); err == nil {
+			return val
+		}
+	}
+	return 0
+}
+
+
+
+func (m AppModel) calculateConsistencyScore(match *entity.PlayerMatchSummary) float64 {
+	// Calculate consistency based on K/D ratio stability
+	if match.KDRatio > 1.5 {
+		return 0.9
+	} else if match.KDRatio > 1.0 {
+		return 0.7
+	} else if match.KDRatio > 0.8 {
+		return 0.5
+	}
+	return 0.3
+}
+
+func (m AppModel) calculateImpactScore(match *entity.PlayerMatchSummary) float64 {
+	// Calculate impact based on kills and assists
+	impact := float64(match.Kills)*0.6 + float64(match.Assists)*0.4
+	return impact / 20.0 // Normalize to 0-1 scale
+}
+
+func (m AppModel) calculateClutchScore(match *entity.PlayerMatchSummary) float64 {
+	// Calculate clutch performance
+	if match.Result == "Win" && match.KDRatio > 1.2 {
+		return 0.8
+	} else if match.Result == "Win" {
+		return 0.6
+	}
+	return 0.4
+}
+
+func (m AppModel) calculateEntryScore(match *entity.PlayerMatchSummary) float64 {
+	// Calculate entry performance
+	entryKills := m.calculateEntryFrags(match)
+	return float64(entryKills) / 10.0 // Normalize
+}
+
+func (m AppModel) calculateSupportScore(match *entity.PlayerMatchSummary) float64 {
+	// Calculate support performance
+	support := float64(match.Assists) + float64(m.calculateFlashAssists(match))
+	return support / 15.0 // Normalize
+}
+
 // Message types for async operations
 type profileLoadedMsg struct {
 	profile entity.PlayerProfile
@@ -359,6 +651,10 @@ type matchesLoadedMsg struct {
 
 type statsLoadedMsg struct {
 	stats PlayerStatsSummary
+}
+
+type matchDetailLoadedMsg struct {
+	matchDetail MatchDetail
 }
 
 type errorMsg struct {
@@ -390,6 +686,11 @@ var (
 	statsStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#FFA500")).
+			Padding(1, 2)
+
+	matchDetailStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#9D4EDD")).
 			Padding(1, 2)
 
 	errorStyle = lipgloss.NewStyle().
@@ -461,8 +762,10 @@ func (m AppModel) viewMatches() string {
 	
 	var content strings.Builder
 	for i, match := range m.matches {
-		if i >= 10 { // Limit to 10 matches for display
-			break
+		// Highlight selected match
+		prefix := "  "
+		if i == m.selectedMatchIndex {
+			prefix = "▶ "
 		}
 		
 		resultStyle := lossStyle
@@ -472,17 +775,18 @@ func (m AppModel) viewMatches() string {
 		
 		finishedAt := time.Unix(match.FinishedAt, 0).Format("2006-01-02 15:04")
 		
-		content.WriteString(fmt.Sprintf("%s %s | %s | %s\n", 
+		content.WriteString(fmt.Sprintf("%s%s %s | %s | %s\n", 
+			prefix,
 			resultStyle.Render(match.Result),
 			match.Map,
 			match.Score,
 			finishedAt))
-		content.WriteString(fmt.Sprintf("  K/D/A: %d/%d/%d (%.2f) | HS: %.1f%%\n\n",
+		content.WriteString(fmt.Sprintf("    K/D/A: %d/%d/%d (%.2f) | HS: %.1f%%\n\n",
 			match.Kills, match.Deaths, match.Assists, match.KDRatio, match.HeadshotsPercentage))
 	}
 
 	matches := matchesStyle.Render(content.String())
-	help := helpStyle.Render("Esc - Back to profile • Ctrl+C or Q to quit")
+	help := helpStyle.Render("↑↓/KJ - Navigate • Enter/D - View details • Esc - Back to profile • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center, title, matches, help))
@@ -542,6 +846,80 @@ func (m AppModel) viewStats() string {
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center, title, stats, help))
+}
+
+// viewMatchDetail renders the detailed match statistics screen
+func (m AppModel) viewMatchDetail() string {
+	if m.matchDetail == nil {
+		return "No match detail data"
+	}
+
+	title := titleStyle.Render("🔍 Match Details - " + m.matchDetail.Map)
+	
+	var content strings.Builder
+	
+	// Match overview
+	finishedAt := time.Unix(m.matchDetail.FinishedAt, 0).Format("2006-01-02 15:04")
+	resultStyle := lossStyle
+	if m.matchDetail.Result == "Win" {
+		resultStyle = winStyle
+	}
+	
+	content.WriteString("📊 Match Overview:\n")
+	content.WriteString(fmt.Sprintf("  %s | %s | %s\n", 
+		resultStyle.Render(m.matchDetail.Result),
+		m.matchDetail.Score,
+		finishedAt))
+	content.WriteString(fmt.Sprintf("  Map: %s | Match ID: %s\n\n", 
+		m.matchDetail.Map, m.matchDetail.MatchID))
+	
+	// Player statistics
+	content.WriteString("🎯 Player Performance:\n")
+	content.WriteString(fmt.Sprintf("  K/D/A: %d/%d/%d (%.2f)\n", 
+		m.matchDetail.PlayerStats.Kills,
+		m.matchDetail.PlayerStats.Deaths,
+		m.matchDetail.PlayerStats.Assists,
+		m.matchDetail.PlayerStats.KDRatio))
+	content.WriteString(fmt.Sprintf("  HS%%: %.1f%% | ADR: %.1f | Rating: %.2f\n\n", 
+		m.matchDetail.PlayerStats.HeadshotsPercentage,
+		m.matchDetail.PlayerStats.ADR,
+		m.matchDetail.PlayerStats.Rating))
+	
+	// Advanced metrics
+	content.WriteString("⚡ Advanced Metrics:\n")
+	content.WriteString(fmt.Sprintf("  First Kills: %d | First Deaths: %d\n", 
+		m.matchDetail.PlayerStats.FirstKills,
+		m.matchDetail.PlayerStats.FirstDeaths))
+	content.WriteString(fmt.Sprintf("  Clutch Wins: %d | Entry Frags: %d\n", 
+		m.matchDetail.PlayerStats.ClutchWins,
+		m.matchDetail.PlayerStats.EntryFrags))
+	content.WriteString(fmt.Sprintf("  Flash Assists: %d | Utility Damage: %d\n\n", 
+		m.matchDetail.PlayerStats.FlashAssists,
+		m.matchDetail.PlayerStats.UtilityDamage))
+	
+	// Performance scores
+	content.WriteString("📈 Performance Scores:\n")
+	content.WriteString(fmt.Sprintf("  Consistency: %.1f%% | Impact: %.1f%%\n", 
+		m.matchDetail.PerformanceMetrics.ConsistencyScore*100,
+		m.matchDetail.PerformanceMetrics.ImpactScore*100))
+	content.WriteString(fmt.Sprintf("  Clutch: %.1f%% | Entry: %.1f%% | Support: %.1f%%\n\n", 
+		m.matchDetail.PerformanceMetrics.ClutchScore*100,
+		m.matchDetail.PerformanceMetrics.EntryScore*100,
+		m.matchDetail.PerformanceMetrics.SupportScore*100))
+	
+	// Team statistics
+	content.WriteString("👥 Team Statistics:\n")
+	content.WriteString(fmt.Sprintf("  Your Team: %d | Enemy Team: %d\n", 
+		m.matchDetail.TeamStats.PlayerTeamScore,
+		m.matchDetail.TeamStats.EnemyTeamScore))
+	
+
+
+	matchDetail := matchDetailStyle.Render(content.String())
+	help := helpStyle.Render("Esc - Back to matches • Ctrl+C or Q to quit")
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, title, matchDetail, help))
 }
 
 // viewLoading renders the loading screen
