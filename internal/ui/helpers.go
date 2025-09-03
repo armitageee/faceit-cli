@@ -319,3 +319,116 @@ func (m AppModel) calculateSupportScore(match *entity.PlayerMatchSummary) float6
 	// Support score based on assists and team play
 	return float64(match.Assists) * 15
 }
+
+// generateASCIILevel creates a large ASCII art representation of the skill level
+func generateASCIILevel(level int) string {
+	// ASCII art for digits 0-10
+	digits := map[int]string{
+		0: `  ██████  
+ ██    ██ 
+██      ██
+██      ██
+██      ██
+ ██    ██ 
+  ██████  `,
+		1: `    ██    
+  ████    
+    ██    
+    ██    
+    ██    
+    ██    
+  ██████  `,
+		2: ` ██████  
+██    ██ 
+      ██ 
+ ██████  
+██       
+██       
+████████ `,
+		3: ` ██████  
+██    ██ 
+      ██ 
+ ██████  
+      ██ 
+██    ██ 
+ ██████  `,
+		4: `██    ██ 
+██    ██ 
+██    ██ 
+████████
+      ██ 
+      ██ 
+      ██ `,
+		5: `████████
+██       
+██       
+███████  
+      ██ 
+██    ██ 
+ ██████  `,
+		6: ` ██████  
+██       
+██       
+███████  
+██    ██ 
+██    ██ 
+ ██████  `,
+		7: `████████
+      ██ 
+     ██  
+    ██   
+   ██    
+  ██     
+ ██      `,
+		8: ` ██████  
+██    ██ 
+██    ██ 
+ ██████  
+██    ██ 
+██    ██ 
+ ██████  `,
+		9: ` ██████  
+██    ██ 
+██    ██ 
+ ███████
+      ██ 
+██    ██ 
+ ██████  `,
+		10: ` ██████   ██████  
+██    ██ ██    ██ 
+██      ██      ██
+██      ██      ██
+██      ██      ██
+██    ██ ██    ██ 
+ ██████   ██████  `,
+	}
+
+	if ascii, exists := digits[level]; exists {
+		return ascii
+	}
+	
+	// Fallback for unknown levels
+	return `  ██████  
+ ██    ██ 
+██      ██
+██      ██
+██      ██
+ ██    ██ 
+  ██████  `
+}
+
+// getLevelColor returns the color for a given skill level
+func getLevelColor(level int) string {
+	switch {
+	case level >= 8:
+		return "#FFD700" // Gold for high levels (8-10)
+	case level >= 6:
+		return "#FF6B6B" // Red for medium-high levels (6-7)
+	case level >= 4:
+		return "#4ECDC4" // Teal for medium levels (4-5)
+	case level >= 2:
+		return "#45B7D1" // Blue for low-medium levels (2-3)
+	default:
+		return "#96CEB4" // Green for low levels (1)
+	}
+}

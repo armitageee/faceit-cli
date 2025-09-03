@@ -279,3 +279,61 @@ func contains(s, substr string) bool {
 		s[len(s)-len(substr):] == substr || 
 		contains(s[1:], substr))))
 }
+
+func TestGenerateASCIILevel(t *testing.T) {
+	// Test level 1
+	level1 := generateASCIILevel(1)
+	if !contains(level1, "██") {
+		t.Error("Level 1 ASCII should contain block characters")
+	}
+	
+	// Test level 5
+	level5 := generateASCIILevel(5)
+	if !contains(level5, "██") {
+		t.Error("Level 5 ASCII should contain block characters")
+	}
+	
+	// Test level 10
+	level10 := generateASCIILevel(10)
+	if !contains(level10, "██") {
+		t.Error("Level 10 ASCII should contain block characters")
+	}
+	
+	// Test unknown level (should return fallback)
+	unknown := generateASCIILevel(99)
+	if !contains(unknown, "██") {
+		t.Error("Unknown level should return fallback ASCII")
+	}
+}
+
+func TestGetLevelColor(t *testing.T) {
+	// Test high level (8-10)
+	color := getLevelColor(9)
+	if color != "#FFD700" {
+		t.Errorf("Expected gold color for level 9, got %s", color)
+	}
+	
+	// Test medium-high level (6-7)
+	color = getLevelColor(7)
+	if color != "#FF6B6B" {
+		t.Errorf("Expected red color for level 7, got %s", color)
+	}
+	
+	// Test medium level (4-5)
+	color = getLevelColor(5)
+	if color != "#4ECDC4" {
+		t.Errorf("Expected teal color for level 5, got %s", color)
+	}
+	
+	// Test low-medium level (2-3)
+	color = getLevelColor(3)
+	if color != "#45B7D1" {
+		t.Errorf("Expected blue color for level 3, got %s", color)
+	}
+	
+	// Test low level (1)
+	color = getLevelColor(1)
+	if color != "#96CEB4" {
+		t.Errorf("Expected green color for level 1, got %s", color)
+	}
+}

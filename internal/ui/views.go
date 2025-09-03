@@ -32,18 +32,33 @@ func (m AppModel) viewProfile() string {
 	content.WriteString(fmt.Sprintf("Country: %s\n", m.player.Country))
 	content.WriteString(fmt.Sprintf("ID: %s\n", m.player.ID))
 	
+	var levelASCII string
+	var levelColor string
+	
 	if cs2, ok := m.player.Games["cs2"]; ok {
 		content.WriteString("\n🎯 CS2 Stats:\n")
 		content.WriteString(fmt.Sprintf("  ELO: %d\n", cs2.Elo))
 		content.WriteString(fmt.Sprintf("  Skill Level: %d\n", cs2.SkillLevel))
 		content.WriteString(fmt.Sprintf("  Region: %s\n", cs2.Region))
+		
+		// Generate ASCII level and color
+		levelASCII = generateASCIILevel(cs2.SkillLevel)
+		levelColor = getLevelColor(cs2.SkillLevel)
 	}
 
 	profile := profileStyle.Render(content.String())
+	
+	// Create styled ASCII level
+	levelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(levelColor))
+	styledLevel := levelStyle.Render(levelASCII)
+	
+	// Combine profile info and level ASCII side by side
+	profileWithLevel := lipgloss.JoinHorizontal(lipgloss.Center, profile, "  ", styledLevel)
+	
 	help := helpStyle.Render("M - Recent matches • S - Statistics (20 matches) • P - Switch player • Esc - Back to search • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, profile, help))
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, profileWithLevel, help))
 }
 
 // viewMatches renders the matches screen
