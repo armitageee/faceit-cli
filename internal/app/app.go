@@ -8,7 +8,7 @@ import (
 	"faceit-cli/internal/repository"
 	"faceit-cli/internal/ui"
 
-	"github.com/charmbracelet/bubbletea"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // App represents the main application
@@ -28,7 +28,7 @@ func NewApp(cfg *config.Config) *App {
 
 // Run starts the application
 func (a *App) Run(ctx context.Context) error {
-	model := ui.InitialModel(a.repo)
+	model := ui.InitialModel(a.repo, a.config)
 	
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	

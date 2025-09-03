@@ -7,10 +7,12 @@ A beautiful terminal user interface (TUI) for viewing FACEIT player profiles and
 - 🔍 Search for players by nickname
 - 👤 View player profiles with CS2 stats (ELO, skill level, region)
 - 🏆 Browse recent match history with detailed statistics
-- 📊 View comprehensive statistics over last 20 matches
+- 📊 View comprehensive statistics over last 20 matches with streak information
 - 🔍 Detailed match analysis with advanced metrics and performance scores
 - 🎯 Navigate through all matches and view detailed stats for any match
-- 🎨 Beautiful terminal interface with colors and styling
+- 🔄 Switch between players without restarting the application
+- 💾 Remember default player via environment variable
+- 🎨 Beautiful ASCII logo and terminal interface with colors and styling
 - ⚡ Fast and responsive
 
 ## Prerequisites
@@ -42,6 +44,17 @@ Or set the environment variable directly:
 export FACEIT_API_KEY=your_api_key_here
 ```
 
+### Environment Variables
+
+- `FACEIT_API_KEY` (required): Your FACEIT API key
+- `FACEIT_DEFAULT_PLAYER` (optional): Default player nickname to load automatically on startup
+
+Example `.env` file:
+```bash
+FACEIT_API_KEY=your_api_key_here
+FACEIT_DEFAULT_PLAYER=your_nickname_here
+```
+
 ## Usage
 
 Run the application:
@@ -55,6 +68,7 @@ go run main.go
 - **Profile Screen**: 
   - `M` - View recent matches (10 matches)
   - `S` - View statistics (20 matches)
+  - `P` - Switch to another player
   - `Esc` - Back to search
   - `Ctrl+C` or `Q` - Quit
 - **Matches Screen**:
@@ -66,6 +80,10 @@ go run main.go
   - `Esc` - Back to matches
   - `Ctrl+C` or `Q` - Quit
 - **Statistics Screen**:
+  - `Esc` - Back to profile
+  - `Ctrl+C` or `Q` - Quit
+- **Player Switch Screen**:
+  - Type player nickname and press `Enter` to switch
   - `Esc` - Back to profile
   - `Ctrl+C` or `Q` - Quit
 - **Error Screen**:
@@ -124,6 +142,12 @@ The detailed match view includes:
 - **Clutch Score**: Performance in clutch situations
 - **Entry Score**: Entry fragging effectiveness
 - **Support Score**: Support/utility usage
+
+### 🔥 Streak Information
+- **Current Streak**: Shows current win or loss streak
+- **Longest Streaks**: Displays record win and loss streaks
+- **Recent Performance**: Average K/D over last 5 matches
+- **Performance Tracking**: Monitor improvement or decline trends
 
 
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"faceit-cli/internal/config"
 	"faceit-cli/internal/entity"
 	"faceit-cli/internal/repository"
 
@@ -29,6 +30,11 @@ type PlayerStatsSummary struct {
 	WorstKDRatio     float64
 	MostPlayedMap    string
 	MapStats         map[string]int
+	KDChartData      []float64 // K/D ratios for chart
+	CurrentStreak    int    // positive for win streak, negative for loss streak
+	StreakType       string // "win" or "loss"
+	LongestWinStreak int
+	LongestLossStreak int
 }
 
 // MatchDetail represents detailed statistics for a single match
@@ -92,6 +98,7 @@ const (
 	StateMatchDetail
 	StateLoading
 	StateError
+	StatePlayerSwitch
 )
 
 // AppModel is the main application model
@@ -106,24 +113,43 @@ type AppModel struct {
 	error        string
 	loading      bool
 	repo         repository.FaceitRepository
+	config       *config.Config
 	width        int
 	height       int
+	// Player switching
+	playerSwitchInput string
+	recentPlayers     []string
 }
 
 // InitialModel returns the initial state of the application
-func InitialModel(repo repository.FaceitRepository) AppModel {
-	return AppModel{
+func InitialModel(repo repository.FaceitRepository, cfg *config.Config) AppModel {
+	model := AppModel{
 		state:       StateSearch,
 		searchInput: "",
 		repo:        repo,
+		config:      cfg,
 		width:       80,
 		height:      24,
 		selectedMatchIndex: 0,
+		playerSwitchInput: "",
+		recentPlayers:     []string{},
 	}
+	
+	// If default player is set, load it automatically
+	if cfg.DefaultPlayer != "" {
+		model.searchInput = cfg.DefaultPlayer
+		model.state = StateLoading
+	}
+	
+	return model
 }
 
 // Init implements the tea.Model interface
 func (m AppModel) Init() tea.Cmd {
+	// If we have a default player and we're in loading state, load the profile
+	if m.config.DefaultPlayer != "" && m.state == StateLoading {
+		return m.loadPlayerProfile(m.config.DefaultPlayer)
+	}
 	return nil
 }
 
@@ -147,6 +173,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateStats(msg)
 		case StateMatchDetail:
 			return m.updateMatchDetail(msg)
+		case StatePlayerSwitch:
+			return m.updatePlayerSwitch(msg)
 		case StateError:
 			return m.updateError(msg)
 		}
@@ -201,6 +229,8 @@ func (m AppModel) View() string {
 		return m.viewMatchDetail()
 	case StateLoading:
 		return m.viewLoading()
+	case StatePlayerSwitch:
+		return m.viewPlayerSwitch()
 	case StateError:
 		return m.viewError()
 	default:
@@ -250,8 +280,65 @@ func (m AppModel) updateProfile(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		m.state = StateLoading
 		return m, m.loadStatistics()
+	case "p":
+		// Switch player
+		m.state = StatePlayerSwitch
+		m.playerSwitchInput = ""
+		return m, nil
 	}
 	return m, nil
+}
+
+// updatePlayerSwitch handles key events in the player switch state
+func (m AppModel) updatePlayerSwitch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc":
+		m.state = StateProfile
+		m.playerSwitchInput = ""
+		return m, nil
+	case "enter":
+		if m.playerSwitchInput != "" {
+			// Add current player to recent players if not already there
+			if m.profile != nil {
+				m.addToRecentPlayers(m.profile.Nickname)
+			}
+			// Switch to new player
+			m.searchInput = m.playerSwitchInput
+			m.state = StateLoading
+			m.loading = true
+			return m, m.loadPlayerProfile(m.playerSwitchInput)
+		}
+		return m, nil
+	case "backspace":
+		if len(m.playerSwitchInput) > 0 {
+			m.playerSwitchInput = m.playerSwitchInput[:len(m.playerSwitchInput)-1]
+		}
+		return m, nil
+	default:
+		if len(msg.String()) == 1 {
+			m.playerSwitchInput += msg.String()
+		}
+		return m, nil
+	}
+}
+
+// addToRecentPlayers adds a player to the recent players list
+func (m *AppModel) addToRecentPlayers(nickname string) {
+	// Remove if already exists
+	for i, player := range m.recentPlayers {
+		if player == nickname {
+			m.recentPlayers = append(m.recentPlayers[:i], m.recentPlayers[i+1:]...)
+			break
+		}
+	}
+	// Add to beginning
+	m.recentPlayers = append([]string{nickname}, m.recentPlayers...)
+	// Keep only last 5 players
+	if len(m.recentPlayers) > 5 {
+		m.recentPlayers = m.recentPlayers[:5]
+	}
 }
 
 // updateMatches handles key events in the matches state
@@ -392,6 +479,7 @@ func calculateStats(matches []entity.PlayerMatchSummary) PlayerStatsSummary {
 		MapStats:     make(map[string]int),
 		BestKDRatio:  -1,
 		WorstKDRatio: 999,
+		KDChartData:  make([]float64, 0, len(matches)),
 	}
 
 	var totalKDRatio, totalHS float64
@@ -420,6 +508,9 @@ func calculateStats(matches []entity.PlayerMatchSummary) PlayerStatsSummary {
 				stats.WorstKDRatio = match.KDRatio
 			}
 		}
+		
+		// Add K/D ratio to chart data
+		stats.KDChartData = append(stats.KDChartData, match.KDRatio)
 
 		// Headshot percentage
 		if match.HeadshotsPercentage > 0 {
@@ -449,6 +540,9 @@ func calculateStats(matches []entity.PlayerMatchSummary) PlayerStatsSummary {
 		}
 	}
 
+	// Calculate streaks
+	stats.CurrentStreak, stats.StreakType, stats.LongestWinStreak, stats.LongestLossStreak = calculateStreaks(matches)
+
 	// Handle edge cases
 	if stats.BestKDRatio == -1 {
 		stats.BestKDRatio = 0
@@ -458,6 +552,381 @@ func calculateStats(matches []entity.PlayerMatchSummary) PlayerStatsSummary {
 	}
 
 	return stats
+}
+
+// calculateStreaks calculates current and longest win/loss streaks
+func calculateStreaks(matches []entity.PlayerMatchSummary) (currentStreak int, streakType string, longestWinStreak, longestLossStreak int) {
+	if len(matches) == 0 {
+		return 0, "none", 0, 0
+	}
+
+	// Calculate current streak (from most recent match)
+	currentStreak = 0
+	streakType = "none"
+	
+	// Start from the most recent match (index 0)
+	for i := 0; i < len(matches); i++ {
+		if matches[i].Result == "Win" {
+			if streakType == "win" || streakType == "none" {
+				currentStreak++
+				streakType = "win"
+			} else {
+				break
+			}
+		} else {
+			if streakType == "loss" || streakType == "none" {
+				currentStreak++
+				streakType = "loss"
+			} else {
+				break
+			}
+		}
+	}
+	
+	// If it's a loss streak, make it negative
+	if streakType == "loss" {
+		currentStreak = -currentStreak
+	}
+
+	// Calculate longest streaks
+	longestWinStreak = 0
+	longestLossStreak = 0
+	currentWinStreak := 0
+	currentLossStreak := 0
+
+	for _, match := range matches {
+		if match.Result == "Win" {
+			currentWinStreak++
+			currentLossStreak = 0
+			if currentWinStreak > longestWinStreak {
+				longestWinStreak = currentWinStreak
+			}
+		} else {
+			currentLossStreak++
+			currentWinStreak = 0
+			if currentLossStreak > longestLossStreak {
+				longestLossStreak = currentLossStreak
+			}
+		}
+	}
+
+	return currentStreak, streakType, longestWinStreak, longestLossStreak
+}
+
+// generateKDChart creates an ASCII line chart of K/D ratios
+func generateKDChart(kdData []float64, width, height int) string {
+	if len(kdData) == 0 {
+		return "No data available"
+	}
+	
+	// Find min and max values for scaling
+	minKD := kdData[0]
+	maxKD := kdData[0]
+	for _, kd := range kdData {
+		if kd < minKD {
+			minKD = kd
+		}
+		if kd > maxKD {
+			maxKD = kd
+		}
+	}
+	
+	// Add some padding to the range
+	rangePadding := (maxKD - minKD) * 0.1
+	if rangePadding == 0 {
+		rangePadding = 0.1
+	}
+	minKD -= rangePadding
+	maxKD += rangePadding
+	
+	// Create chart
+	var chart strings.Builder
+	chart.WriteString("K/D Trend:\n")
+	
+	// Create a grid to plot points
+	grid := make([][]string, height)
+	for i := range grid {
+		grid[i] = make([]string, width)
+		for j := range grid[i] {
+			grid[i][j] = " "
+		}
+	}
+	
+	// Plot data points and connect them with lines
+	for x := 0; x < width && x < len(kdData); x++ {
+		kd := kdData[x]
+		normalizedY := (kd - minKD) / (maxKD - minKD)
+		y := int(normalizedY * float64(height-1))
+		
+		// Ensure y is within bounds
+		if y < 0 {
+			y = 0
+		}
+		if y >= height {
+			y = height - 1
+		}
+		
+		// Plot the point
+		grid[height-1-y][x] = "●"
+		
+		// Connect to next point with line
+		if x < width-1 && x < len(kdData)-1 {
+			nextKD := kdData[x+1]
+			nextNormalizedY := (nextKD - minKD) / (maxKD - minKD)
+			nextY := int(nextNormalizedY * float64(height-1))
+			
+			if nextY < 0 {
+				nextY = 0
+			}
+			if nextY >= height {
+				nextY = height - 1
+			}
+			
+			// Draw line between points
+			startY := height - 1 - y
+			endY := height - 1 - nextY
+			
+			if startY != endY {
+				step := 1
+				if endY < startY {
+					step = -1
+				}
+				
+				for lineY := startY; lineY != endY; lineY += step {
+					if lineY >= 0 && lineY < height {
+						if grid[lineY][x] == " " {
+							grid[lineY][x] = "─"
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// Y-axis labels and chart area
+	for y := height - 1; y >= 0; y-- {
+		// Y-axis label
+		value := minKD + (maxKD-minKD)*float64(y)/float64(height-1)
+		chart.WriteString(fmt.Sprintf("%.1f│", value))
+		
+		// Chart line
+		for x := 0; x < width && x < len(kdData); x++ {
+			chart.WriteString(grid[y][x])
+		}
+		chart.WriteString("\n")
+	}
+	
+	// X-axis
+	chart.WriteString("  └")
+	for x := 0; x < width && x < len(kdData); x++ {
+		chart.WriteString("─")
+	}
+	chart.WriteString("\n")
+	
+	// X-axis labels (match numbers, oldest to newest, left to right)
+	chart.WriteString("   ")
+	for x := 0; x < width && x < len(kdData); x++ {
+		if x%5 == 0 || x == len(kdData)-1 {
+			// Show match numbers from oldest (1) to newest (20)
+			matchNum := len(kdData) - x
+			chart.WriteString(fmt.Sprintf("%d", matchNum))
+		} else {
+			chart.WriteString(" ")
+		}
+	}
+	
+	return chart.String()
+}
+
+
+
+// generateColoredKDChart creates a colored ASCII line chart of K/D ratios (like Faceit)
+func generateColoredKDChart(kdData []float64, width, height int) string {
+	if len(kdData) == 0 {
+		return "No data available"
+	}
+	
+	// Find min and max values for scaling
+	minKD := kdData[0]
+	maxKD := kdData[0]
+	for _, kd := range kdData {
+		if kd < minKD {
+			minKD = kd
+		}
+		if kd > maxKD {
+			maxKD = kd
+		}
+	}
+	
+	// Add some padding to the range
+	rangePadding := (maxKD - minKD) * 0.1
+	if rangePadding == 0 {
+		rangePadding = 0.1
+	}
+	minKD -= rangePadding
+	maxKD += rangePadding
+	
+	// Create chart
+	var chart strings.Builder
+	chart.WriteString("K/D Trend:\n")
+	
+	// Create a grid for the line chart
+	type chartPoint struct {
+		char  string
+		color lipgloss.Style
+	}
+	
+	grid := make([][]chartPoint, height)
+	for i := range grid {
+		grid[i] = make([]chartPoint, width)
+		for j := range grid[i] {
+			grid[i][j] = chartPoint{" ", lipgloss.NewStyle()}
+		}
+	}
+	
+	// Calculate how many matches we can fit in the width
+	matchesToShow := len(kdData)
+	if matchesToShow > width {
+		matchesToShow = width
+	}
+	
+	// Plot data points and connect them with lines
+	for x := 0; x < matchesToShow; x++ {
+		kd := kdData[x]
+		normalizedY := (kd - minKD) / (maxKD - minKD)
+		y := int(normalizedY * float64(height-1))
+		
+		// Ensure y is within bounds
+		if y < 0 {
+			y = 0
+		}
+		if y >= height {
+			y = height - 1
+		}
+		
+		// Plot the point with color
+		color := lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
+		grid[height-1-y][x] = chartPoint{"●", color}
+		
+		// Connect to next point with line
+		if x < matchesToShow-1 {
+			nextKD := kdData[x+1]
+			nextNormalizedY := (nextKD - minKD) / (maxKD - minKD)
+			nextY := int(nextNormalizedY * float64(height-1))
+			
+			if nextY < 0 {
+				nextY = 0
+			}
+			if nextY >= height {
+				nextY = height - 1
+			}
+			
+			// Draw line between points
+			startY := height - 1 - y
+			endY := height - 1 - nextY
+			
+			if startY != endY {
+				step := 1
+				if endY < startY {
+					step = -1
+				}
+				
+				for lineY := startY; lineY != endY; lineY += step {
+					if lineY >= 0 && lineY < height {
+						if grid[lineY][x].char == " " {
+							// Use the color of the current point for the line
+							grid[lineY][x] = chartPoint{"─", color}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	// Y-axis labels and chart area
+	for y := height - 1; y >= 0; y-- {
+		// Y-axis label
+		value := minKD + (maxKD-minKD)*float64(y)/float64(height-1)
+		chart.WriteString(fmt.Sprintf("%.1f│", value))
+		
+		// Chart line with colors
+		for x := 0; x < matchesToShow; x++ {
+			point := grid[y][x]
+			chart.WriteString(point.color.Render(point.char))
+		}
+		chart.WriteString("\n")
+	}
+	
+	// X-axis
+	chart.WriteString("  └")
+	for x := 0; x < matchesToShow; x++ {
+		chart.WriteString("─")
+	}
+	chart.WriteString("\n")
+	
+	// Simple X-axis without match numbers
+	chart.WriteString("   ")
+	for x := 0; x < matchesToShow; x++ {
+		if x%5 == 0 || x == matchesToShow-1 {
+			chart.WriteString("│")
+		} else {
+			chart.WriteString(" ")
+		}
+	}
+	
+	return chart.String()
+}
+
+// generateStreakInfo creates a formatted string showing current and longest streaks
+func generateStreakInfo(stats *PlayerStatsSummary) string {
+	var streakInfo strings.Builder
+	
+	streakInfo.WriteString("🔥 Streak Information:\n\n")
+	
+	// Current streak
+	if stats.CurrentStreak > 0 {
+		streakInfo.WriteString(fmt.Sprintf("🏆 Current Win Streak: %d\n", stats.CurrentStreak))
+	} else if stats.CurrentStreak < 0 {
+		streakInfo.WriteString(fmt.Sprintf("💔 Current Loss Streak: %d\n", -stats.CurrentStreak))
+	} else {
+		streakInfo.WriteString("⚖️  No current streak\n")
+	}
+	
+	streakInfo.WriteString("\n")
+	
+	// Longest streaks
+	streakInfo.WriteString("📊 Longest Streaks:\n")
+	streakInfo.WriteString(fmt.Sprintf("🏆 Longest Win Streak: %d\n", stats.LongestWinStreak))
+	streakInfo.WriteString(fmt.Sprintf("💔 Longest Loss Streak: %d\n", stats.LongestLossStreak))
+	
+	streakInfo.WriteString("\n")
+	
+	// Recent performance
+	streakInfo.WriteString("📈 Recent Performance:\n")
+	if len(stats.KDChartData) >= 5 {
+		recentKD := stats.KDChartData[:5] // Last 5 matches
+		avgRecentKD := 0.0
+		for _, kd := range recentKD {
+			avgRecentKD += kd
+		}
+		avgRecentKD /= float64(len(recentKD))
+		streakInfo.WriteString(fmt.Sprintf("📊 Last 5 matches K/D: %.2f\n", avgRecentKD))
+	}
+	
+	return streakInfo.String()
+}
+
+// generateASCIILogo creates a large ASCII art logo for FACEIT-CLI
+func generateASCIILogo() string {
+	logo := `
+██████   █████╗  ██████╗███████╗██╗████████╗    ██████╗██╗     ██╗
+██╔══   ██╔══██╗██╔════╝██╔════╝██║╚══██╔══╝   ██╔════╝██║     ██║
+██████  ███████║██║     █████╗  ██║   ██║      ██║     ██║     ██║
+██╔══   ██╔══██║██║     ██╔══╝  ██║   ██║      ██║     ██║     ██║
+██║    ║██║  ██║╚██████╗███████╗██║   ██║      ╚██████╗███████╗██║
+╚═╝    ╚═╝  ╚═╝ ╚═════╝╚══════╝╚═╝   ╚═╝       ╚═════╝╚══════╝╚═╝
+`
+	return logo
 }
 
 // getDetailedMatchStats retrieves and processes detailed match statistics
@@ -714,16 +1183,19 @@ var (
 	lossStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF5F87")).
 			Bold(true)
+
+
 )
 
 // viewSearch renders the search screen
 func (m AppModel) viewSearch() string {
+	asciiTitle := generateASCIILogo()
 	title := titleStyle.Render("🎮 FACEIT CLI")
 	search := searchStyle.Render(fmt.Sprintf("Enter player nickname:\n\n%s", m.searchInput))
 	help := helpStyle.Render("Press Enter to search • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Center, title, search, help))
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, search, help))
 }
 
 // viewProfile renders the profile screen
@@ -732,6 +1204,7 @@ func (m AppModel) viewProfile() string {
 		return "No profile data"
 	}
 
+	asciiTitle := generateASCIILogo()
 	title := titleStyle.Render("👤 " + m.profile.Nickname)
 	
 	var content strings.Builder
@@ -746,10 +1219,10 @@ func (m AppModel) viewProfile() string {
 	}
 
 	profile := profileStyle.Render(content.String())
-	help := helpStyle.Render("M - Recent matches • S - Statistics (20 matches) • Esc - Back to search • Ctrl+C or Q to quit")
+	help := helpStyle.Render("M - Recent matches • S - Statistics (20 matches) • P - Switch player • Esc - Back to search • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Center, title, profile, help))
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, profile, help))
 }
 
 // viewMatches renders the matches screen
@@ -758,6 +1231,7 @@ func (m AppModel) viewMatches() string {
 		return "No matches found"
 	}
 
+	asciiTitle := generateASCIILogo()
 	title := titleStyle.Render("🏆 Recent Matches - " + m.profile.Nickname)
 	
 	var content strings.Builder
@@ -789,7 +1263,7 @@ func (m AppModel) viewMatches() string {
 	help := helpStyle.Render("↑↓/KJ - Navigate • Enter/D - View details • Esc - Back to profile • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Center, title, matches, help))
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, matches, help))
 }
 
 // viewStats renders the statistics screen
@@ -798,25 +1272,27 @@ func (m AppModel) viewStats() string {
 		return "No statistics data"
 	}
 
+	asciiTitle := generateASCIILogo()
 	title := titleStyle.Render("📊 Statistics (20 matches) - " + m.profile.Nickname)
 	
-	var content strings.Builder
-	content.WriteString("📈 Overall Performance:\n")
-	content.WriteString(fmt.Sprintf("  Matches: %d | Wins: %d | Losses: %d\n", 
+	// Left side - Statistics
+	var statsContent strings.Builder
+	statsContent.WriteString("📈 Overall Performance:\n")
+	statsContent.WriteString(fmt.Sprintf("  Matches: %d | Wins: %d | Losses: %d\n", 
 		m.stats.TotalMatches, m.stats.Wins, m.stats.Losses))
-	content.WriteString(fmt.Sprintf("  Win Rate: %.1f%%\n\n", m.stats.WinRate))
+	statsContent.WriteString(fmt.Sprintf("  Win Rate: %.1f%%\n\n", m.stats.WinRate))
 	
-	content.WriteString("🎯 Combat Statistics:\n")
-	content.WriteString(fmt.Sprintf("  Total K/D/A: %d/%d/%d\n", 
+	statsContent.WriteString("🎯 Combat Statistics:\n")
+	statsContent.WriteString(fmt.Sprintf("  Total K/D/A: %d/%d/%d\n", 
 		m.stats.TotalKills, m.stats.TotalDeaths, m.stats.TotalAssists))
-	content.WriteString(fmt.Sprintf("  Average K/D: %.2f\n", m.stats.AverageKDRatio))
-	content.WriteString(fmt.Sprintf("  Best K/D: %.2f | Worst K/D: %.2f\n", 
+	statsContent.WriteString(fmt.Sprintf("  Average K/D: %.2f\n", m.stats.AverageKDRatio))
+	statsContent.WriteString(fmt.Sprintf("  Best K/D: %.2f | Worst K/D: %.2f\n", 
 		m.stats.BestKDRatio, m.stats.WorstKDRatio))
-	content.WriteString(fmt.Sprintf("  Average HS%%: %.1f%%\n\n", m.stats.AverageHS))
+	statsContent.WriteString(fmt.Sprintf("  Average HS%%: %.1f%%\n\n", m.stats.AverageHS))
 	
-	content.WriteString("🗺️  Map Statistics:\n")
-	content.WriteString(fmt.Sprintf("  Most Played: %s\n", m.stats.MostPlayedMap))
-	content.WriteString("  Map Breakdown:\n")
+	statsContent.WriteString("🗺️  Map Statistics:\n")
+	statsContent.WriteString(fmt.Sprintf("  Most Played: %s\n", m.stats.MostPlayedMap))
+	statsContent.WriteString("  Map Breakdown:\n")
 	
 	// Sort maps by count (most played first)
 	type mapStat struct {
@@ -838,14 +1314,23 @@ func (m AppModel) viewStats() string {
 	}
 	
 	for _, mapStat := range sortedMaps {
-		content.WriteString(fmt.Sprintf("    %s: %d matches\n", mapStat.name, mapStat.count))
+		statsContent.WriteString(fmt.Sprintf("    %s: %d matches\n", mapStat.name, mapStat.count))
 	}
 
-	stats := statsStyle.Render(content.String())
+	// Right side - Streak information
+	streakInfo := generateStreakInfo(m.stats)
+	
+	// Create styled boxes
+	statsBox := statsStyle.Render(statsContent.String())
+	streakBox := statsStyle.Render(streakInfo)
+	
+	// Combine stats and streak info side by side
+	combinedContent := lipgloss.JoinHorizontal(lipgloss.Top, statsBox, "  ", streakBox)
+	
 	help := helpStyle.Render("Esc - Back to profile • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Center, title, stats, help))
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, combinedContent, help))
 }
 
 // viewMatchDetail renders the detailed match statistics screen
@@ -854,6 +1339,7 @@ func (m AppModel) viewMatchDetail() string {
 		return "No match detail data"
 	}
 
+	asciiTitle := generateASCIILogo()
 	title := titleStyle.Render("🔍 Match Details - " + m.matchDetail.Map)
 	
 	var content strings.Builder
@@ -919,7 +1405,7 @@ func (m AppModel) viewMatchDetail() string {
 	help := helpStyle.Render("Esc - Back to matches • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Center, title, matchDetail, help))
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, matchDetail, help))
 }
 
 // viewLoading renders the loading screen
@@ -929,6 +1415,29 @@ func (m AppModel) viewLoading() string {
 }
 
 // viewError renders the error screen
+func (m AppModel) viewPlayerSwitch() string {
+	asciiTitle := generateASCIILogo()
+	title := titleStyle.Render("🔄 Switch Player")
+	
+	var content strings.Builder
+	content.WriteString("Enter player nickname:\n\n")
+	content.WriteString(fmt.Sprintf("> %s", m.playerSwitchInput))
+	
+	// Show recent players if any
+	if len(m.recentPlayers) > 0 {
+		content.WriteString("\n\nRecent players:\n")
+		for i, player := range m.recentPlayers {
+			content.WriteString(fmt.Sprintf("  %d. %s\n", i+1, player))
+		}
+	}
+	
+	playerSwitch := profileStyle.Render(content.String())
+	help := helpStyle.Render("Enter - Switch player • Esc - Back to profile • Ctrl+C or Q to quit")
+	
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, playerSwitch, help))
+}
+
 func (m AppModel) viewError() string {
 	error := errorStyle.Render(fmt.Sprintf("❌ Error: %s", m.error))
 	help := helpStyle.Render("Esc or Enter - Back to search • Ctrl+C or Q to quit")
