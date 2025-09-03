@@ -3,6 +3,7 @@ package ui
 import (
 	"faceit-cli/internal/config"
 	"faceit-cli/internal/entity"
+	"faceit-cli/internal/logger"
 	"faceit-cli/internal/repository"
 
 	"github.com/charmbracelet/lipgloss"
@@ -34,6 +35,7 @@ type PlayerStatsSummary struct {
 	TotalDeaths      int
 	TotalAssists     int
 	AverageKDRatio   float64
+	TotalKDA         float64 // Total K/D ratio (total kills / total deaths)
 	AverageHS        float64
 	BestKDRatio      float64
 	WorstKDRatio     float64
@@ -104,6 +106,7 @@ type PlayerComparison struct {
 // ComparisonData represents detailed comparison metrics
 type ComparisonData struct {
 	KDRatioDiff      float64
+	TotalKDADiff     float64 // Difference in total K/D ratio
 	WinRateDiff      float64
 	AverageHSDiff    float64
 	TotalKillsDiff   int
@@ -120,6 +123,7 @@ type AppModel struct {
 	state              AppState
 	repo               repository.FaceitRepository
 	config             *config.Config
+	logger             *logger.Logger
 	searchInput        string
 	player             *entity.PlayerProfile
 	matches            []entity.PlayerMatchSummary
@@ -135,6 +139,11 @@ type AppModel struct {
 	loading            bool
 	width              int
 	height             int
+	// Pagination fields
+	currentPage        int
+	totalMatches       int
+	matchesPerPage     int
+	hasMoreMatches     bool
 }
 
 // Custom message types for async operations
@@ -152,6 +161,17 @@ type comparisonLoadedMsg struct {
 
 type lifetimeStatsLoadedMsg struct {
 	stats *entity.PlayerStats
+}
+
+type matchesPageLoadedMsg struct {
+	matches      []entity.PlayerMatchSummary
+	page         int
+	hasMore      bool
+	totalMatches int
+}
+
+type backgroundMatchesLoadedMsg struct {
+	matches []entity.PlayerMatchSummary
 }
 
 // Styling constants
