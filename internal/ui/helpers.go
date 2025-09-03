@@ -2,6 +2,7 @@ package ui
 
 import (
 	"faceit-cli/internal/entity"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -320,115 +321,69 @@ func (m AppModel) calculateSupportScore(match *entity.PlayerMatchSummary) float6
 	return float64(match.Assists) * 15
 }
 
-// generateASCIILevel creates a large ASCII art representation of the skill level
-func generateASCIILevel(level int) string {
-	// ASCII art for digits 0-10
-	digits := map[int]string{
-		0: `  ██████  
- ██    ██ 
-██      ██
-██      ██
-██      ██
- ██    ██ 
-  ██████  `,
-		1: `    ██    
-  ████    
-    ██    
-    ██    
-    ██    
-    ██    
-  ██████  `,
-		2: ` ██████  
-██    ██ 
-      ██ 
- ██████  
-██       
-██       
-████████ `,
-		3: ` ██████  
-██    ██ 
-      ██ 
- ██████  
-      ██ 
-██    ██ 
- ██████  `,
-		4: `██    ██ 
-██    ██ 
-██    ██ 
-████████
-      ██ 
-      ██ 
-      ██ `,
-		5: `████████
-██       
-██       
-███████  
-      ██ 
-██    ██ 
- ██████  `,
-		6: ` ██████  
-██       
-██       
-███████  
-██    ██ 
-██    ██ 
- ██████  `,
-		7: `████████
-      ██ 
-     ██  
-    ██   
-   ██    
-  ██     
- ██      `,
-		8: ` ██████  
-██    ██ 
-██    ██ 
- ██████  
-██    ██ 
-██    ██ 
- ██████  `,
-		9: ` ██████  
-██    ██ 
-██    ██ 
- ███████
-      ██ 
-██    ██ 
- ██████  `,
-		10: ` ██████   ██████  
-██    ██ ██    ██ 
-██      ██      ██
-██      ██      ██
-██      ██      ██
-██    ██ ██    ██ 
- ██████   ██████  `,
+// calculateComparisonData calculates comparison metrics between two players
+func calculateComparisonData(player1Stats, player2Stats PlayerStatsSummary) ComparisonData {
+	return ComparisonData{
+		KDRatioDiff:      player1Stats.AverageKDRatio - player2Stats.AverageKDRatio,
+		WinRateDiff:      player1Stats.WinRate - player2Stats.WinRate,
+		AverageHSDiff:    player1Stats.AverageHS - player2Stats.AverageHS,
+		TotalKillsDiff:   player1Stats.TotalKills - player2Stats.TotalKills,
+		TotalDeathsDiff:  player1Stats.TotalDeaths - player2Stats.TotalDeaths,
+		TotalAssistsDiff: player1Stats.TotalAssists - player2Stats.TotalAssists,
+		BestKDDiff:       player1Stats.BestKDRatio - player2Stats.BestKDRatio,
+		WorstKDDiff:      player1Stats.WorstKDRatio - player2Stats.WorstKDRatio,
+		MostPlayedMap:    findMostPlayedMap(player1Stats, player2Stats),
+		CommonMaps:       findCommonMaps(player1Stats, player2Stats),
 	}
+}
 
-	if ascii, exists := digits[level]; exists {
-		return ascii
+// findMostPlayedMap finds the map that both players played most
+func findMostPlayedMap(stats1, stats2 PlayerStatsSummary) string {
+	commonMaps := findCommonMaps(stats1, stats2)
+	if len(commonMaps) == 0 {
+		return "No common maps"
 	}
 	
-	// Fallback for unknown levels
-	return `  ██████  
- ██    ██ 
-██      ██
-██      ██
-██      ██
- ██    ██ 
-  ██████  `
+	maxCount := 0
+	mostPlayed := ""
+	for _, mapName := range commonMaps {
+		count1 := stats1.MapStats[mapName]
+		count2 := stats2.MapStats[mapName]
+		totalCount := count1 + count2
+		if totalCount > maxCount {
+			maxCount = totalCount
+			mostPlayed = mapName
+		}
+	}
+	return mostPlayed
 }
 
-// getLevelColor returns the color for a given skill level
-func getLevelColor(level int) string {
-	switch {
-	case level >= 8:
-		return "#FFD700" // Gold for high levels (8-10)
-	case level >= 6:
-		return "#FF6B6B" // Red for medium-high levels (6-7)
-	case level >= 4:
-		return "#4ECDC4" // Teal for medium levels (4-5)
-	case level >= 2:
-		return "#45B7D1" // Blue for low-medium levels (2-3)
-	default:
-		return "#96CEB4" // Green for low levels (1)
+// findCommonMaps finds maps that both players have played
+func findCommonMaps(stats1, stats2 PlayerStatsSummary) []string {
+	var commonMaps []string
+	for mapName := range stats1.MapStats {
+		if _, exists := stats2.MapStats[mapName]; exists {
+			commonMaps = append(commonMaps, mapName)
+		}
 	}
+	return commonMaps
 }
+
+// formatComparisonValue formats a comparison value with appropriate styling
+func formatComparisonValue(value float64, isBetter bool) string {
+	if isBetter {
+		return betterStyle.Render(fmt.Sprintf("+%.2f", value))
+	}
+	return worseStyle.Render(fmt.Sprintf("%.2f", value))
+}
+
+// formatComparisonInt formats an integer comparison value with appropriate styling
+func formatComparisonInt(value int, isBetter bool) string {
+	if isBetter {
+		return betterStyle.Render(fmt.Sprintf("+%d", value))
+	}
+	return worseStyle.Render(fmt.Sprintf("%d", value))
+}
+
+
+

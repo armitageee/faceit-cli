@@ -74,6 +74,10 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateMatchDetail(msg)
 		case StatePlayerSwitch:
 			return m.updatePlayerSwitch(msg)
+		case StateComparisonInput:
+			return m.updateComparisonInput(msg)
+		case StateComparison:
+			return m.updateComparison(msg)
 		case StateError:
 			return m.updateError(msg)
 		}
@@ -105,6 +109,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = StateMatchDetail
 		return m, nil
 
+	case comparisonLoadedMsg:
+		m.loading = false
+		m.comparison = &msg.comparison
+		m.state = StateComparison
+		return m, nil
+
 	case errorMsg:
 		m.loading = false
 		m.error = msg.err
@@ -134,6 +144,10 @@ func (m AppModel) View() string {
 		return m.viewMatchDetail()
 	case StatePlayerSwitch:
 		return m.viewPlayerSwitch()
+	case StateComparisonInput:
+		return m.viewComparisonInput()
+	case StateComparison:
+		return m.viewComparison()
 	case StateError:
 		return m.viewError()
 	default:
