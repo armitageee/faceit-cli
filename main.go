@@ -8,6 +8,7 @@ import (
 
 	"faceit-cli/internal/app"
 	"faceit-cli/internal/config"
+	"faceit-cli/internal/logger"
 
 	"github.com/joho/godotenv"
 )
@@ -30,12 +31,40 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
+	// Initialize logger
+	loggerConfig := logger.Config{
+		Level:          logger.ParseLogLevel(cfg.LogLevel),
+		KafkaEnabled:   cfg.KafkaEnabled,
+		KafkaBrokers:   cfg.KafkaBrokers,
+		KafkaTopic:     cfg.KafkaTopic,
+		ServiceName:    "faceit-cli",
+		ProductionMode: cfg.ProductionMode,
+		LogToStdout:    cfg.LogToStdout,
+	}
+
+	appLogger, err := logger.New(loggerConfig)
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer appLogger.Close()
+
+	appLogger.Info("Starting faceit-cli application", map[string]interface{}{
+		"version":       version,
+		"kafka_enabled": cfg.KafkaEnabled,
+		"log_level":     cfg.LogLevel,
+	})
+
 	ctx := context.Background()
 	
-	application := app.NewApp(cfg)
+	application := app.NewApp(cfg, appLogger)
 	
 	if err := application.Run(ctx); err != nil {
+		appLogger.Error("Application failed", map[string]interface{}{
+			"error": err.Error(),
+		})
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+
+	appLogger.Info("Application stopped gracefully")
 }

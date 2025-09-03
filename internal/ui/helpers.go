@@ -81,6 +81,13 @@ func calculateStats(matches []entity.PlayerMatchSummary) PlayerStatsSummary {
 		stats.WinRate = float64(stats.Wins) / float64(len(matches)) * 100
 		stats.AverageKDRatio = totalKDRatio / float64(len(matches))
 		stats.AverageHS = totalHS / float64(len(matches))
+		
+		// Calculate total K/D ratio (total kills / total deaths)
+		if stats.TotalDeaths > 0 {
+			stats.TotalKDA = float64(stats.TotalKills) / float64(stats.TotalDeaths)
+		} else {
+			stats.TotalKDA = float64(stats.TotalKills) // If no deaths, K/D = kills
+		}
 	}
 
 	stats.BestKDRatio = bestKD
@@ -325,6 +332,7 @@ func (m AppModel) calculateSupportScore(match *entity.PlayerMatchSummary) float6
 func calculateComparisonData(player1Stats, player2Stats PlayerStatsSummary) ComparisonData {
 	return ComparisonData{
 		KDRatioDiff:      player1Stats.AverageKDRatio - player2Stats.AverageKDRatio,
+		TotalKDADiff:     player1Stats.TotalKDA - player2Stats.TotalKDA,
 		WinRateDiff:      player1Stats.WinRate - player2Stats.WinRate,
 		AverageHSDiff:    player1Stats.AverageHS - player2Stats.AverageHS,
 		TotalKillsDiff:   player1Stats.TotalKills - player2Stats.TotalKills,
@@ -383,6 +391,63 @@ func formatComparisonInt(value int, isBetter bool) string {
 		return betterStyle.Render(fmt.Sprintf("+%d", value))
 	}
 	return worseStyle.Render(fmt.Sprintf("%d", value))
+}
+
+// getVisualLength calculates the visual length of a string (counting runes)
+func getVisualLength(s string) int {
+	return len([]rune(s))
+}
+
+// generateProfileFrame generates a beautiful ASCII frame for the profile
+func generateProfileFrame(content string) string {
+	lines := strings.Split(content, "\n")
+	maxWidth := 0
+	for _, line := range lines {
+		visualLen := getVisualLength(line)
+		if visualLen > maxWidth {
+			maxWidth = visualLen
+		}
+	}
+	
+	// Ensure minimum width
+	if maxWidth < 50 {
+		maxWidth = 50
+	}
+	
+	var result strings.Builder
+	
+	// Top border with corners
+	result.WriteString("╔")
+	for i := 0; i < maxWidth+2; i++ {
+		result.WriteString("═")
+	}
+	result.WriteString("╗\n")
+	
+	// Content lines with side borders
+	for _, line := range lines {
+		result.WriteString("║ ")
+		result.WriteString(line)
+		// Pad with spaces to maintain width based on visual length
+		visualLen := getVisualLength(line)
+		// Subtract space for lines with emojis to compensate for emoji width
+		adjustment := 0
+		if strings.Contains(line, "🎯") || strings.Contains(line, "📊") {
+			adjustment = -1
+		}
+		for i := visualLen; i < maxWidth+adjustment; i++ {
+			result.WriteString(" ")
+		}
+		result.WriteString(" ║\n")
+	}
+	
+	// Bottom border with corners
+	result.WriteString("╚")
+	for i := 0; i < maxWidth+2; i++ {
+		result.WriteString("═")
+	}
+	result.WriteString("╝")
+	
+	return result.String()
 }
 
 // extractLifetimeStats extracts key statistics from lifetime stats
