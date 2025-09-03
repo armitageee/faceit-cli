@@ -3,6 +3,7 @@ package ui
 import (
 	"faceit-cli/internal/config"
 	"faceit-cli/internal/entity"
+	"faceit-cli/internal/logger"
 	"faceit-cli/internal/repository"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -23,18 +24,26 @@ type errorMsg struct {
 }
 
 // InitialModel creates the initial application model
-func InitialModel(repo repository.FaceitRepository, config *config.Config) AppModel {
+func InitialModel(repo repository.FaceitRepository, config *config.Config, appLogger *logger.Logger) AppModel {
 	model := AppModel{
-		state:         StateSearch,
-		repo:          repo,
-		config:        config,
-		searchInput:   "",
-		recentPlayers: make([]string, 0),
-		loading:       false,
+		state:          StateSearch,
+		repo:           repo,
+		config:         config,
+		logger:         appLogger,
+		searchInput:    "",
+		recentPlayers:  make([]string, 0),
+		loading:        false,
+		currentPage:    1,
+		totalMatches:   0,
+		matchesPerPage: config.MatchesPerPage,
+		hasMoreMatches: false,
 	}
 
 	// If default player is configured, load it automatically
 	if config.DefaultPlayer != "" {
+		appLogger.Info("Loading default player", map[string]interface{}{
+			"player": config.DefaultPlayer,
+		})
 		model.searchInput = config.DefaultPlayer
 		model.loading = true
 		model.state = StateLoading
@@ -95,7 +104,38 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.matches = msg.matches
 		m.selectedMatchIndex = 0
+		m.currentPage = 1
+		m.totalMatches = len(msg.matches)
+		// Calculate if there are more pages
+		totalPages := (len(msg.matches) + m.matchesPerPage - 1) / m.matchesPerPage
+		m.hasMoreMatches = m.currentPage < totalPages
 		m.state = StateMatches
+		
+		// Start background loading if we loaded less than the maximum
+		if len(msg.matches) < m.config.MaxMatchesToLoad {
+			return m, m.loadBackgroundMatches()
+		}
+		return m, nil
+
+	case matchesPageLoadedMsg:
+		m.loading = false
+		// Replace matches with the new page data
+		m.matches = msg.matches
+		m.currentPage = msg.page
+		m.hasMoreMatches = msg.hasMore
+		m.totalMatches = msg.totalMatches
+		// Reset selected index to first match of the page
+		m.selectedMatchIndex = 0
+		return m, nil
+
+	case backgroundMatchesLoadedMsg:
+		// Update matches if we have more data from background loading
+		if len(msg.matches) > len(m.matches) {
+			m.matches = msg.matches
+			// Recalculate pagination info
+			totalPages := (len(m.matches) + m.matchesPerPage - 1) / m.matchesPerPage
+			m.hasMoreMatches = m.currentPage < totalPages
+		}
 		return m, nil
 
 	case statsLoadedMsg:

@@ -92,6 +92,66 @@ version:
 	@echo "Build time: $(BUILD_TIME)"
 	@echo "Git commit: $(GIT_COMMIT)"
 
+# Docker Compose targets
+.PHONY: kafka-up
+kafka-up:
+	@echo "Starting Kafka infrastructure..."
+	docker-compose up -d
+
+.PHONY: kafka-down
+kafka-down:
+	@echo "Stopping Kafka infrastructure..."
+	docker-compose down
+
+.PHONY: kafka-logs
+kafka-logs:
+	@echo "Showing Kafka logs..."
+	docker-compose logs -f
+
+.PHONY: kafka-ui
+kafka-ui:
+	@echo "Kafka UI available at: http://localhost:8080"
+
+.PHONY: kafka-topics
+kafka-topics:
+	@echo "Listing Kafka topics..."
+	docker exec -it faceit-cli-kafka kafka-topics --bootstrap-server localhost:9092 --list
+
+.PHONY: kafka-create-topic
+kafka-create-topic:
+	@echo "Creating faceit-cli-logs topic..."
+	docker exec -it faceit-cli-kafka kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic faceit-cli-logs --partitions 3 --replication-factor 1
+
+# Run with Kafka logging enabled
+.PHONY: run-kafka
+run-kafka:
+	@echo "Running with Kafka logging enabled..."
+	KAFKA_ENABLED=true LOG_LEVEL=debug go run main.go
+
+# Run in production mode (no stdout logs, only Kafka)
+.PHONY: run-production
+run-production:
+	@echo "Running in production mode..."
+	PRODUCTION_MODE=true LOG_TO_STDOUT=false KAFKA_ENABLED=true LOG_LEVEL=info go run main.go
+
+# Run in production mode with Kafka
+.PHONY: run-prod-kafka
+run-prod-kafka:
+	@echo "Running in production mode with Kafka..."
+	PRODUCTION_MODE=true LOG_TO_STDOUT=false KAFKA_ENABLED=true LOG_LEVEL=info make kafka-up && go run main.go
+
+# Run with caching enabled
+.PHONY: run-cache
+run-cache:
+	@echo "Running with caching enabled..."
+	CACHE_ENABLED=true CACHE_TTL=30 go run main.go
+
+# Run with all optimizations
+.PHONY: run-optimized
+run-optimized:
+	@echo "Running with all optimizations..."
+	CACHE_ENABLED=true CACHE_TTL=30 MATCHES_PER_PAGE=10 MAX_MATCHES_TO_LOAD=50 go run main.go
+
 # Help
 .PHONY: help
 help:
@@ -106,5 +166,16 @@ help:
 	@echo "  deps          - Install dependencies"
 	@echo "  install-tools - Install development tools"
 	@echo "  run           - Build and run the application"
+	@echo "  run-kafka     - Run with Kafka logging enabled"
+	@echo "  run-production - Run in production mode (no stdout logs)"
+	@echo "  run-prod-kafka - Run in production mode with Kafka"
+	@echo "  run-cache     - Run with caching enabled"
+	@echo "  run-optimized - Run with all optimizations (cache + pagination)"
+	@echo "  kafka-up      - Start Kafka infrastructure (Kafka KRaft, Kafka UI)"
+	@echo "  kafka-down    - Stop Kafka infrastructure"
+	@echo "  kafka-logs    - Show Kafka infrastructure logs"
+	@echo "  kafka-ui      - Show Kafka UI URL (http://localhost:8080)"
+	@echo "  kafka-topics  - List all Kafka topics"
+	@echo "  kafka-create-topic - Create faceit-cli-logs topic manually"
 	@echo "  version       - Show version information"
 	@echo "  help          - Show this help message"

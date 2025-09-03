@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"sort"
 
@@ -166,6 +167,9 @@ func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID 
 	if len(history.Items) == 0 {
 		return nil, nil
 	}
+	
+	// Debug logging (can be removed in production)
+	// fmt.Printf("DEBUG: Requested limit: %d, Got matches: %d\n", limit, len(history.Items))
 	results := make([]entity.PlayerMatchSummary, 0, len(history.Items))
 
 	// Iterate through the returned matches.  The API lists matches
@@ -229,10 +233,16 @@ func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID 
 		// returned to the user.
 		var kills, deaths, assists int
 		var kdRatio, hsPerc, adr float64
-		stats, _, err := r.client.MatchesApi.GetMatchStats(ctx, item.MatchId)
+		// Create a separate context with longer timeout for match stats
+		statsCtx, statsCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		statsCtx = r.contextWithAPIKey(statsCtx)
+		
+		stats, _, err := r.client.MatchesApi.GetMatchStats(statsCtx, item.MatchId)
+		statsCancel()
+		
 		if err != nil {
 			// Log the error and continue without stats.
-			// For CLI we'll just continue without detailed stats
+			// fmt.Printf("DEBUG: Failed to get stats for match %s: %v\n", item.MatchId, err)
 		} else if len(stats.Rounds) > 0 {
 			// Aggregate statistics across all rounds for the player. The API may
 			// provide per‑round data; summing kills, deaths and assists over

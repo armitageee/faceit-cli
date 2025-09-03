@@ -123,6 +123,23 @@ func (m AppModel) updateMatches(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.selectedMatchIndex++
 		}
 		return m, nil
+	case "left", "h":
+		// Go to previous page
+		if m.currentPage > 1 {
+			m.currentPage--
+			// Always reset cursor to first position on the new page
+			m.selectedMatchIndex = (m.currentPage - 1) * m.matchesPerPage
+		}
+		return m, nil
+	case "right", "l":
+		// Go to next page
+		totalPages := (len(m.matches) + m.matchesPerPage - 1) / m.matchesPerPage
+		if m.currentPage < totalPages {
+			m.currentPage++
+			// Always reset cursor to first position on the new page
+			m.selectedMatchIndex = (m.currentPage - 1) * m.matchesPerPage
+		}
+		return m, nil
 	case "enter", "d":
 		// Load detailed view of the selected match
 		if len(m.matches) > 0 && m.selectedMatchIndex < len(m.matches) {
@@ -174,13 +191,26 @@ func (m AppModel) updateError(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // loadPlayerProfile loads a player profile asynchronously
 func (m AppModel) loadPlayerProfile(nickname string) tea.Cmd {
 	return func() tea.Msg {
+		m.logger.Info("Loading player profile", map[string]interface{}{
+			"nickname": nickname,
+		})
+		
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		profile, err := m.repo.GetPlayerByNickname(ctx, nickname)
 		if err != nil {
+			m.logger.Error("Failed to load player profile", map[string]interface{}{
+				"nickname": nickname,
+				"error":    err.Error(),
+			})
 			return errorMsg{err: err.Error()}
 		}
+		
+		m.logger.Info("Player profile loaded successfully", map[string]interface{}{
+			"nickname": nickname,
+			"player_id": profile.ID,
+		})
 		return profileLoadedMsg{profile: *profile}
 	}
 }
@@ -188,14 +218,49 @@ func (m AppModel) loadPlayerProfile(nickname string) tea.Cmd {
 // loadRecentMatches loads recent matches asynchronously
 func (m AppModel) loadRecentMatches() tea.Cmd {
 	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		// Load a smaller batch first for quick display
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
-		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", 10)
+		// Load initial batch (first 20 matches for quick display)
+		initialLimit := 20
+		if initialLimit > m.config.MaxMatchesToLoad {
+			initialLimit = m.config.MaxMatchesToLoad
+		}
+		
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", initialLimit)
 		if err != nil {
 			return errorMsg{err: err.Error()}
 		}
 		return matchesLoadedMsg{matches: matches}
+	}
+}
+
+// loadMatchesPage is no longer needed since we paginate client-side
+// This function is kept for compatibility but does nothing
+func (m AppModel) loadMatchesPage(page int) tea.Cmd {
+	return func() tea.Msg {
+		// Since we now load all matches at once, pagination is handled client-side
+		// This function is kept for compatibility but returns immediately
+		return nil
+	}
+}
+
+// loadBackgroundMatches loads matches in the background for better UX
+func (m AppModel) loadBackgroundMatches() tea.Cmd {
+	return func() tea.Msg {
+		// Use a longer timeout for background loading
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+		defer cancel()
+
+		// Load more matches in the background
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", m.config.MaxMatchesToLoad)
+		if err != nil {
+			// Don't return error for background loading, just return empty matches
+			return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
+		}
+		
+		return backgroundMatchesLoadedMsg{matches: matches}
 	}
 }
 

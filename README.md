@@ -6,7 +6,7 @@ A beautiful terminal user interface (TUI) for viewing FACEIT player profiles and
 
 - 🔍 Search for players by nickname
 - 👤 View player profiles with CS2 stats (ELO, skill level, region)
-- 🏆 Browse recent match history with detailed statistics
+- 🏆 Browse recent match history with detailed statistics and pagination
 - 📊 View comprehensive statistics over last 20 matches with streak information
 - 🔍 Detailed match analysis with advanced metrics and performance scores
 - 🎯 Navigate through all matches and view detailed stats for any match
@@ -14,6 +14,8 @@ A beautiful terminal user interface (TUI) for viewing FACEIT player profiles and
 - 🔄 Switch between players without restarting the application
 - 💾 Remember default player via environment variable
 - 🎨 Beautiful ASCII logo and terminal interface with colors and styling
+- 📝 Centralized logging with configurable levels (debug, info, warn, error)
+- 🚀 Kafka integration for log aggregation (optional)
 - ⚡ Fast and responsive
 
 ## Prerequisites
@@ -91,11 +93,29 @@ export FACEIT_API_KEY=your_api_key_here
 
 - `FACEIT_API_KEY` (required): Your FACEIT API key
 - `FACEIT_DEFAULT_PLAYER` (optional): Default player nickname to load automatically on startup
+- `LOG_LEVEL` (optional): Log level - debug, info, warn, error (default: info)
+- `KAFKA_ENABLED` (optional): Enable Kafka logging - true/false (default: false)
+- `KAFKA_BROKERS` (optional): Comma-separated Kafka brokers (default: localhost:9092)
+- `KAFKA_TOPIC` (optional): Kafka topic for logs (default: faceit-cli-logs)
+- `PRODUCTION_MODE` (optional): Enable production mode - true/false (default: false)
+- `LOG_TO_STDOUT` (optional): Log to stdout - true/false (default: true)
+- `MATCHES_PER_PAGE` (optional): Matches per page (default: 10)
+- `MAX_MATCHES_TO_LOAD` (optional): Maximum matches to load (default: 100)
+- `CACHE_ENABLED` (optional): Enable API response caching - true/false (default: false)
+- `CACHE_TTL` (optional): Cache TTL in minutes (default: 30)
 
 **Example `.env` file:**
 ```bash
 FACEIT_API_KEY=your_api_key_here
 FACEIT_DEFAULT_PLAYER=your_nickname_here
+LOG_LEVEL=debug
+KAFKA_ENABLED=false
+PRODUCTION_MODE=false
+LOG_TO_STDOUT=true
+MATCHES_PER_PAGE=10
+MAX_MATCHES_TO_LOAD=100
+CACHE_ENABLED=false
+CACHE_TTL=30
 ```
 
 ## Usage
@@ -117,6 +137,7 @@ go run main.go
   - `Ctrl+C` or `Q` - Quit
 - **Matches Screen**:
   - `↑`/`↓` or `K`/`J` - Navigate through matches
+  - `←`/`→` or `H`/`L` - Navigate between pages
   - `Enter` or `D` - View detailed analysis of selected match
   - `Esc` - Back to profile
   - `Ctrl+C` or `Q` - Quit
@@ -283,6 +304,140 @@ The matches screen now supports full navigation through all recent matches:
 - **Keyboard Navigation**: Use arrow keys (`↑`/`↓`) or Vim-style keys (`K`/`J`) to navigate
 - **Detailed View**: Press `Enter` or `D` to view detailed statistics for the selected match
 - **All Matches**: Navigate through all 20 recent matches, not just the first 10
+
+## Match History Pagination
+
+Browse through your complete match history with intuitive pagination controls! No more limitations on viewing your recent matches.
+
+### 🏆 How Pagination Works
+
+- **Page Navigation**: Use `←`/`→` or `H`/`L` keys to move between pages
+- **Configurable Page Size**: Set `MATCHES_PER_PAGE` environment variable (default: 10)
+- **Smart Loading**: Matches are loaded on-demand as you navigate
+- **Visual Indicators**: See current page, match range, and availability of more pages
+
+### 📊 Pagination Features
+
+#### **Visual Feedback**
+- **Page Information**: "Page 2 | Matches 11-20"
+- **Navigation Hints**: "More available (→)" and "Previous (←)"
+- **Match Range**: Shows which matches you're currently viewing
+
+#### **Keyboard Controls**
+- `←`/`H` - Go to previous page
+- `→`/`L` - Go to next page (if available)
+- `↑`/`↓`/`K`/`J` - Navigate within current page
+- `Enter`/`D` - View detailed match analysis
+
+#### **Configuration**
+```bash
+# Set matches per page (default: 10)
+MATCHES_PER_PAGE=15
+
+# Set maximum matches to load (default: 100)
+MAX_MATCHES_TO_LOAD=200
+```
+
+### 🎯 Benefits
+
+- **Complete History**: Access all your recent matches, not just the first 10
+- **Performance**: Load matches efficiently without overwhelming the interface
+- **Flexibility**: Configure page size based on your preference
+- **Intuitive**: Familiar arrow key navigation for page switching
+
+## Performance Optimizations
+
+The application includes several performance optimizations to provide a smooth user experience:
+
+### 🚀 API Response Caching
+
+Reduce API calls and improve response times with intelligent caching:
+
+#### **Features**
+- **In-memory caching** with configurable TTL
+- **Automatic expiration** of stale data
+- **Background cleanup** of expired entries
+- **Cache statistics** for monitoring
+
+#### **Configuration**
+```bash
+# Enable caching (default: false)
+CACHE_ENABLED=true
+
+# Cache TTL in minutes (default: 30)
+CACHE_TTL=30
+```
+
+#### **Benefits**
+- **Faster navigation** - cached data loads instantly
+- **Reduced API calls** - less load on Faceit servers
+- **Better reliability** - works even with slow API responses
+- **Cost efficiency** - fewer API requests
+
+### ⚡ Background Loading
+
+Smart loading strategy for optimal user experience:
+
+#### **How it Works**
+1. **Initial Load** - First 20 matches load quickly (30s timeout)
+2. **Background Loading** - Remaining matches load in background (120s timeout)
+3. **Seamless Updates** - UI updates automatically when more data arrives
+4. **No Blocking** - User can navigate while data loads
+
+#### **Benefits**
+- **Instant Display** - First matches appear quickly
+- **Progressive Enhancement** - More data appears as it loads
+- **Non-blocking** - User can interact while loading
+- **Graceful Degradation** - Works even if background loading fails
+
+### 🎯 Cursor Management
+
+Improved navigation experience:
+
+- **Smart Positioning** - Cursor always starts at top of new page
+- **Consistent Behavior** - Predictable navigation across pages
+- **Visual Feedback** - Clear indication of current position
+
+## Logging and Monitoring
+
+The application features a comprehensive logging system with the following capabilities:
+
+### Log Levels
+- **debug**: Detailed information for debugging
+- **info**: General information about application flow  
+- **warn**: Warning messages for potential issues
+- **error**: Error messages for failures
+
+### Kafka Integration
+Optional Kafka integration for log aggregation and monitoring:
+
+```bash
+# Start Kafka infrastructure
+make kafka-up
+
+# Run with Kafka logging enabled
+make run-kafka
+
+# View Kafka UI
+make kafka-ui  # Opens http://localhost:8080
+```
+
+### Log Examples
+```bash
+# Development mode
+LOG_LEVEL=debug go run main.go
+
+# Run with Kafka integration
+KAFKA_ENABLED=true LOG_LEVEL=info go run main.go
+
+# Production mode (no stdout logs)
+make run-production
+
+# Production mode with Kafka
+make run-prod-kafka
+```
+
+For detailed logging configuration and Kafka setup, see [LOGGING.md](LOGGING.md).
 
 ## CI/CD
 

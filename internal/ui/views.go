@@ -64,11 +64,24 @@ func (m AppModel) viewMatches() string {
 	asciiTitle := generateASCIILogo()
 	title := titleStyle.Render("🏆 Recent Matches - " + m.player.Nickname)
 	
+	// Calculate pagination info
+	startIndex := (m.currentPage - 1) * m.matchesPerPage
+	endIndex := startIndex + m.matchesPerPage
+	if endIndex > len(m.matches) {
+		endIndex = len(m.matches)
+	}
+	
+	// Show only matches for current page
+	pageMatches := m.matches[startIndex:endIndex]
+	
 	var content strings.Builder
-	for i, match := range m.matches {
+	for i, match := range pageMatches {
+		// Calculate global index for selection
+		globalIndex := startIndex + i
+		
 		// Highlight selected match
 		prefix := "  "
-		if i == m.selectedMatchIndex {
+		if globalIndex == m.selectedMatchIndex {
 			prefix = "▶ "
 		}
 		
@@ -89,11 +102,32 @@ func (m AppModel) viewMatches() string {
 			match.Kills, match.Deaths, match.Assists, match.KDRatio, match.HeadshotsPercentage))
 	}
 
+	// Add pagination info
+	totalPages := (len(m.matches) + m.matchesPerPage - 1) / m.matchesPerPage
+	startMatch := startIndex + 1
+	endMatch := endIndex
+	paginationInfo := fmt.Sprintf("Page %d/%d | Matches %d-%d of %d", 
+		m.currentPage, totalPages, startMatch, endMatch, len(m.matches))
+	
+	if m.currentPage < totalPages {
+		paginationInfo += " | Next (→)"
+	}
+	if m.currentPage > 1 {
+		paginationInfo += " | Previous (←)"
+	}
+	
+	paginationStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#626262")).
+		Italic(true).
+		Align(lipgloss.Center)
+	
+	pagination := paginationStyle.Render(paginationInfo)
+
 	matches := matchesStyle.Render(content.String())
-	help := helpStyle.Render("↑↓/KJ - Navigate • Enter/D - View details • Esc - Back to profile • Ctrl+C or Q to quit")
+	help := helpStyle.Render("↑↓/KJ - Navigate • ←→/HL - Change page • Enter/D - View details • Esc - Back to profile • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, matches, help))
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, matches, pagination, help))
 }
 
 // viewStats renders the statistics screen
