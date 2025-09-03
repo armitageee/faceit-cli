@@ -10,6 +10,7 @@ A beautiful terminal user interface (TUI) for viewing FACEIT player profiles and
 - 📊 View comprehensive statistics over last 20 matches with streak information
 - 🔍 Detailed match analysis with advanced metrics and performance scores
 - 🎯 Navigate through all matches and view detailed stats for any match
+- ⚔️ Compare your stats with friends over last 20 matches
 - 🔄 Switch between players without restarting the application
 - 💾 Remember default player via environment variable
 - 🎨 Beautiful ASCII logo and terminal interface with colors and styling
@@ -18,19 +19,19 @@ A beautiful terminal user interface (TUI) for viewing FACEIT player profiles and
 ## Prerequisites
 
 - Go 1.22 or later
-- FACEIT API key
+- FACEIT API key (get one from [FACEIT Developers](https://developers.faceit.com/))
 
 ## Quick Start
 
 ### Using Pre-built Binaries
 
-Download the latest release from the [Releases page](https://github.com/your-username/faceit-cli/releases) and extract the binary for your platform.
+Download the latest release from the [Releases page](https://github.com/armitageee/faceit-cli/releases) and extract the binary for your platform.
 
 ### Building from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/faceit-cli.git
+git clone https://github.com/armitageee/faceit-cli.git
 cd faceit-cli
 
 # Build the application
@@ -60,22 +61,22 @@ make lint
 
 # Install development tools
 make install-tools
-``` (get one from [FACEIT Developers](https://developers.faceit.com/))
+```
 
 ## Installation
 
-1. Clone the repository:
+1. **Clone the repository:**
 ```bash
-git clone <repository-url>
+git clone https://github.com/armitageee/faceit-cli.git
 cd faceit-cli
 ```
 
-2. Install dependencies:
+2. **Install dependencies:**
 ```bash
 go mod tidy
 ```
 
-3. Set up your API key:
+3. **Set up your API key:**
 ```bash
 cp .env.example .env
 # Edit .env and add your FACEIT_API_KEY
@@ -91,7 +92,7 @@ export FACEIT_API_KEY=your_api_key_here
 - `FACEIT_API_KEY` (required): Your FACEIT API key
 - `FACEIT_DEFAULT_PLAYER` (optional): Default player nickname to load automatically on startup
 
-Example `.env` file:
+**Example `.env` file:**
 ```bash
 FACEIT_API_KEY=your_api_key_here
 FACEIT_DEFAULT_PLAYER=your_nickname_here
@@ -99,7 +100,7 @@ FACEIT_DEFAULT_PLAYER=your_nickname_here
 
 ## Usage
 
-Run the application:
+**Run the application:**
 ```bash
 go run main.go
 ```
@@ -110,6 +111,7 @@ go run main.go
 - **Profile Screen**: 
   - `M` - View recent matches (10 matches)
   - `S` - View statistics (20 matches)
+  - `C` - Compare with friend
   - `P` - Switch to another player
   - `Esc` - Back to search
   - `Ctrl+C` or `Q` - Quit
@@ -128,13 +130,20 @@ go run main.go
   - Type player nickname and press `Enter` to switch
   - `Esc` - Back to profile
   - `Ctrl+C` or `Q` - Quit
+- **Comparison Input Screen**:
+  - Type friend's nickname and press `Enter` to compare
+  - `Esc` - Back to profile
+  - `Ctrl+C` or `Q` - Quit
+- **Comparison Screen**:
+  - `Esc` - Back to profile
+  - `Ctrl+C` or `Q` - Quit
 - **Error Screen**:
   - `Esc` or `Enter` - Back to search
   - `Ctrl+C` or `Q` - Quit
 
 ## Building
 
-Build the binary:
+**Build the binary:**
 ```bash
 go build -o faceit-cli main.go
 ```
@@ -157,7 +166,8 @@ faceit-cli/
 
 ## API Integration
 
-This CLI uses the official FACEIT Data API v4. It fetches:
+This CLI uses the official **FACEIT Data API v4**. It fetches:
+
 - Player profiles and basic information
 - CS2 game statistics (ELO, skill level, region)
 - Recent match history with detailed performance metrics
@@ -197,6 +207,72 @@ The detailed match view includes:
 - **Recent Performance**: Average K/D over last 5 matches
 - **Performance Tracking**: Monitor improvement or decline trends
 
+## Player Comparison
+
+Compare your performance with friends over the last 20 matches! This feature provides detailed head-to-head statistics to see who's performing better.
+
+### ⚔️ How to Use
+
+1. **Open your profile** (search for your nickname)
+2. **Press `C`** to start comparison
+3. **Enter friend's nickname** and press Enter
+4. **View detailed comparison** with color-coded results
+
+### 📊 Comparison Metrics
+
+The comparison shows side-by-side statistics with **color-coded differences**:
+
+#### 🎯 Basic Statistics
+- **K/D Ratio**: Average kills per death
+- **Win Rate**: Percentage of matches won
+- **Headshots**: Average headshot percentage
+
+#### 🔫 Kills & Deaths
+- **Total Kills**: Total kills across 20 matches
+- **Total Deaths**: Total deaths across 20 matches  
+- **Total Assists**: Total assists across 20 matches
+
+#### 🏆 Performance
+- **Best K/D**: Highest K/D ratio achieved
+- **Worst K/D**: Lowest K/D ratio recorded
+
+#### 🗺️ Maps
+- **Most Played Together**: Map both players played most
+- **Common Maps**: Number of maps both players have played
+
+### 🎨 Color Coding
+
+- **🟢 Green (+X.XX)**: You're performing better
+- **🔴 Red (-X.XX)**: Friend is performing better
+- **🔵 Teal**: Your statistics
+- **🔴 Red**: Friend's statistics
+
+### 💡 Example Comparison
+
+```
+wUwunchik vs s1mple
+
+📊 Basic Statistics:
+  K/D Ratio: 1.25 vs 1.45 (-0.20)
+  Win Rate: 65.0% vs 70.0% (-5.0%)
+  Headshots: 55.2% vs 58.1% (-2.9%)
+
+🎯 Kills & Deaths:
+  Total Kills: 245 vs 289 (-44)
+  Total Deaths: 196 vs 199 (+3)
+  Total Assists: 89 vs 95 (-6)
+
+🏆 Performance:
+  Best K/D: 2.1 vs 2.8 (-0.7)
+  Worst K/D: 0.6 vs 0.8 (+0.2)
+
+🗺️ Maps:
+  Most Played Together: de_dust2
+  Common Maps: 8
+```
+
+This shows that while s1mple has better overall stats, you have fewer deaths and a better worst performance!
+
 
 
 ## Match Navigation
@@ -210,7 +286,7 @@ The matches screen now supports full navigation through all recent matches:
 
 ## CI/CD
 
-This project uses GitHub Actions for automated testing, building, and releasing:
+This project uses **GitHub Actions** for automated testing, building, and releasing:
 
 - **Automated Testing**: Runs tests on every push and pull request
 - **Multi-platform Builds**: Builds binaries for Linux, Windows, and macOS
@@ -221,15 +297,15 @@ See [.github/README.md](.github/README.md) for detailed information about the CI
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `make test`
-5. Run linter: `make lint`
-6. Submit a pull request
+1. **Fork the repository**
+2. **Create a feature branch**
+3. **Make your changes**
+4. **Run tests:** `make test`
+5. **Run linter:** `make lint`
+6. **Submit a pull request**
 
 The CI/CD pipeline will automatically test your changes before they can be merged.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the **MIT License**.

@@ -385,5 +385,62 @@ func formatComparisonInt(value int, isBetter bool) string {
 	return worseStyle.Render(fmt.Sprintf("%d", value))
 }
 
+// extractLifetimeStats extracts key statistics from lifetime stats
+func extractLifetimeStats(stats *entity.PlayerStats) (kdRatio float64, totalMatches int, winRate float64) {
+	if stats == nil || stats.Lifetime == nil {
+		return 0, 0, 0
+	}
+
+	// Extract K/D ratio - try different possible keys based on FACEIT API
+	kdKeys := []string{"Average K/D Ratio", "K/D Ratio", "K/D", "KD Ratio", "Average KD", "K/D Ratio", "K/D", "KD"}
+	for _, key := range kdKeys {
+		if kd, ok := stats.Lifetime[key]; ok {
+			if kdFloat, ok := kd.(float64); ok {
+				kdRatio = kdFloat
+				break
+			} else if kdStr, ok := kd.(string); ok {
+				if parsed, err := strconv.ParseFloat(kdStr, 64); err == nil {
+					kdRatio = parsed
+					break
+				}
+			}
+		}
+	}
+
+	// Extract total matches - try different possible keys
+	matchKeys := []string{"Matches", "Total Matches", "Games", "Total Games", "Matches Played", "Total Matches Played"}
+	for _, key := range matchKeys {
+		if matches, ok := stats.Lifetime[key]; ok {
+			if matchesFloat, ok := matches.(float64); ok {
+				totalMatches = int(matchesFloat)
+				break
+			} else if matchesStr, ok := matches.(string); ok {
+				if parsed, err := strconv.ParseFloat(matchesStr, 64); err == nil {
+					totalMatches = int(parsed)
+					break
+				}
+			}
+		}
+	}
+
+	// Extract win rate - try different possible keys
+	winRateKeys := []string{"Win Rate %", "Win Rate", "Win%", "Win Percentage", "Wins %", "Winrate %"}
+	for _, key := range winRateKeys {
+		if winRateVal, ok := stats.Lifetime[key]; ok {
+			if winRateFloat, ok := winRateVal.(float64); ok {
+				winRate = winRateFloat
+				break
+			} else if winRateStr, ok := winRateVal.(string); ok {
+				if parsed, err := strconv.ParseFloat(winRateStr, 64); err == nil {
+					winRate = parsed
+					break
+				}
+			}
+		}
+	}
+
+	return kdRatio, totalMatches, winRate
+}
+
 
 

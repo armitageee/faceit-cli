@@ -88,7 +88,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = StateProfile
 		// Add to recent players
 		m.addToRecentPlayers(msg.profile.Nickname)
-		return m, nil
+		// Load lifetime stats
+		return m, m.loadLifetimeStats()
 
 	case matchesLoadedMsg:
 		m.loading = false
@@ -113,6 +114,11 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.loading = false
 		m.comparison = &msg.comparison
 		m.state = StateComparison
+		return m, nil
+
+	case lifetimeStatsLoadedMsg:
+		m.loading = false
+		m.lifetimeStats = msg.stats
 		return m, nil
 
 	case errorMsg:
