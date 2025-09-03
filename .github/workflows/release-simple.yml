@@ -1,4 +1,4 @@
-name: Release
+name: Simple Release
 
 on:
   push:
@@ -48,13 +48,42 @@ jobs:
         sha256sum * > checksums.txt
         
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
       with:
         tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
-        generate_release_notes: true
-        files: |
-          release/*
-        token: ${{ secrets.RELEASE_TOKEN }}
+        body: |
+          ## What's Changed
+          
+          - Full CI/CD pipeline
+          - Multi-platform builds
+          - Automated testing
+          - Code quality checks
+          
+          ## Downloads
+          
+          Download the appropriate binary for your platform:
+          
+          - **Linux (amd64)**: `faceit-cli-linux-amd64`
+          - **Linux (arm64)**: `faceit-cli-linux-arm64`
+          - **Windows (amd64)**: `faceit-cli-windows-amd64.exe`
+          - **macOS (amd64)**: `faceit-cli-darwin-amd64`
+          - **macOS (arm64)**: `faceit-cli-darwin-arm64`
+          
+          ## Verification
+          
+          Verify your download with the checksums in `checksums.txt`.
+        
+    - name: Upload Release Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./release/
+        asset_name: faceit-cli-${{ github.ref_name }}
+        asset_content_type: application/zip
