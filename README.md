@@ -103,6 +103,7 @@ export FACEIT_API_KEY=your_api_key_here
 - `MAX_MATCHES_TO_LOAD` (optional): Maximum matches to load (default: 100)
 - `CACHE_ENABLED` (optional): Enable API response caching - true/false (default: false)
 - `CACHE_TTL` (optional): Cache TTL in minutes (default: 30)
+- `COMPARISON_MATCHES` (optional): Number of matches to use for player comparison (default: 20)
 
 **Example `.env` file:**
 ```bash
@@ -230,7 +231,7 @@ The detailed match view includes:
 
 ## Player Comparison
 
-Compare your performance with friends over the last 20 matches! This feature provides detailed head-to-head statistics to see who's performing better.
+Compare your performance with friends over the last 20 matches (configurable via `COMPARISON_MATCHES` environment variable)! This feature provides detailed head-to-head statistics to see who's performing better. Both players are compared using exactly the same number of recent matches for fair comparison.
 
 ### ⚔️ How to Use
 

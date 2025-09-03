@@ -323,6 +323,11 @@ func (m AppModel) viewComparison() string {
 		m.comparison.Player2Stats.AverageKDRatio,
 		formatComparisonValue(m.comparison.ComparisonData.KDRatioDiff, m.comparison.ComparisonData.KDRatioDiff > 0)))
 	
+	content.WriteString(fmt.Sprintf("  Total K/D: %.2f vs %.2f (%s)\n", 
+		m.comparison.Player1Stats.TotalKDA,
+		m.comparison.Player2Stats.TotalKDA,
+		formatComparisonValue(m.comparison.ComparisonData.TotalKDADiff, m.comparison.ComparisonData.TotalKDADiff > 0)))
+	
 	content.WriteString(fmt.Sprintf("  Win Rate: %.1f%% vs %.1f%% (%s%%)\n", 
 		m.comparison.Player1Stats.WinRate,
 		m.comparison.Player2Stats.WinRate,

@@ -35,6 +35,7 @@ type PlayerStatsSummary struct {
 	TotalDeaths      int
 	TotalAssists     int
 	AverageKDRatio   float64
+	TotalKDA         float64 // Total K/D ratio (total kills / total deaths)
 	AverageHS        float64
 	BestKDRatio      float64
 	WorstKDRatio     float64
@@ -105,6 +106,7 @@ type PlayerComparison struct {
 // ComparisonData represents detailed comparison metrics
 type ComparisonData struct {
 	KDRatioDiff      float64
+	TotalKDADiff     float64 // Difference in total K/D ratio
 	WinRateDiff      float64
 	AverageHSDiff    float64
 	TotalKillsDiff   int

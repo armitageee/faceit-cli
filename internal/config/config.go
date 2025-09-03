@@ -21,6 +21,7 @@ type Config struct {
 	MaxMatchesToLoad  int
 	CacheEnabled      bool
 	CacheTTL          int // Cache TTL in minutes
+	ComparisonMatches int // Number of matches to use for comparison
 }
 
 // Load loads configuration from environment variables
@@ -75,18 +76,27 @@ func Load() (*Config, error) {
 		}
 	}
 
+	// Parse comparison settings
+	comparisonMatches := 20 // Default 20 matches for comparison
+	if comparisonStr := os.Getenv("COMPARISON_MATCHES"); comparisonStr != "" {
+		if parsed, err := strconv.Atoi(comparisonStr); err == nil && parsed > 0 {
+			comparisonMatches = parsed
+		}
+	}
+
 	return &Config{
-		FaceitAPIKey:     apiKey,
-		DefaultPlayer:    defaultPlayer,
-		LogLevel:         logLevel,
-		KafkaEnabled:     kafkaEnabled,
-		KafkaBrokers:     kafkaBrokers,
-		KafkaTopic:       kafkaTopic,
-		ProductionMode:   productionMode,
-		LogToStdout:      logToStdout,
-		MatchesPerPage:   matchesPerPage,
-		MaxMatchesToLoad: maxMatchesToLoad,
-		CacheEnabled:     cacheEnabled,
-		CacheTTL:         cacheTTL,
+		FaceitAPIKey:      apiKey,
+		DefaultPlayer:     defaultPlayer,
+		LogLevel:          logLevel,
+		KafkaEnabled:      kafkaEnabled,
+		KafkaBrokers:      kafkaBrokers,
+		KafkaTopic:        kafkaTopic,
+		ProductionMode:    productionMode,
+		LogToStdout:       logToStdout,
+		MatchesPerPage:    matchesPerPage,
+		MaxMatchesToLoad:  maxMatchesToLoad,
+		CacheEnabled:      cacheEnabled,
+		CacheTTL:          cacheTTL,
+		ComparisonMatches: comparisonMatches,
 	}, nil
 }

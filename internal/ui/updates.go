@@ -427,20 +427,15 @@ func (m AppModel) loadPlayerComparison(friendNickname string) tea.Cmd {
 		}
 
 		// Get friend's recent matches
-		friendMatches, err := m.repo.GetPlayerRecentMatches(ctx, friendProfile.ID, "cs2", 20)
+		friendMatches, err := m.repo.GetPlayerRecentMatches(ctx, friendProfile.ID, "cs2", m.config.ComparisonMatches)
 		if err != nil {
 			return errorMsg{err: fmt.Sprintf("Failed to load friend's matches: %v", err)}
 		}
 
-		// Get current player's recent matches (if not already loaded)
-		var currentMatches []entity.PlayerMatchSummary
-		if len(m.matches) == 0 {
-			currentMatches, err = m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", 20)
-			if err != nil {
-				return errorMsg{err: fmt.Sprintf("Failed to load current player's matches: %v", err)}
-			}
-		} else {
-			currentMatches = m.matches
+		// Get current player's recent matches for comparison (always load exactly the same number for fair comparison)
+		currentMatches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", m.config.ComparisonMatches)
+		if err != nil {
+			return errorMsg{err: fmt.Sprintf("Failed to load current player's matches: %v", err)}
 		}
 
 		// Calculate stats for both players

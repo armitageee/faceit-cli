@@ -81,6 +81,13 @@ func calculateStats(matches []entity.PlayerMatchSummary) PlayerStatsSummary {
 		stats.WinRate = float64(stats.Wins) / float64(len(matches)) * 100
 		stats.AverageKDRatio = totalKDRatio / float64(len(matches))
 		stats.AverageHS = totalHS / float64(len(matches))
+		
+		// Calculate total K/D ratio (total kills / total deaths)
+		if stats.TotalDeaths > 0 {
+			stats.TotalKDA = float64(stats.TotalKills) / float64(stats.TotalDeaths)
+		} else {
+			stats.TotalKDA = float64(stats.TotalKills) // If no deaths, K/D = kills
+		}
 	}
 
 	stats.BestKDRatio = bestKD
@@ -325,6 +332,7 @@ func (m AppModel) calculateSupportScore(match *entity.PlayerMatchSummary) float6
 func calculateComparisonData(player1Stats, player2Stats PlayerStatsSummary) ComparisonData {
 	return ComparisonData{
 		KDRatioDiff:      player1Stats.AverageKDRatio - player2Stats.AverageKDRatio,
+		TotalKDADiff:     player1Stats.TotalKDA - player2Stats.TotalKDA,
 		WinRateDiff:      player1Stats.WinRate - player2Stats.WinRate,
 		AverageHSDiff:    player1Stats.AverageHS - player2Stats.AverageHS,
 		TotalKillsDiff:   player1Stats.TotalKills - player2Stats.TotalKills,
