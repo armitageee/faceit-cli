@@ -17,8 +17,50 @@ A beautiful terminal user interface (TUI) for viewing FACEIT player profiles and
 
 ## Prerequisites
 
-- Go 1.23 or later
-- FACEIT API key (get one from [FACEIT Developers](https://developers.faceit.com/))
+- Go 1.24 or later
+- FACEIT API key
+
+## Quick Start
+
+### Using Pre-built Binaries
+
+Download the latest release from the [Releases page](https://github.com/your-username/faceit-cli/releases) and extract the binary for your platform.
+
+### Building from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/faceit-cli.git
+cd faceit-cli
+
+# Build the application
+make build
+
+# Or build for all platforms
+make build-all
+```
+
+### Development
+
+```bash
+# Install dependencies
+make deps
+
+# Run tests
+make test
+
+# Run with coverage
+make test-coverage
+
+# Format code
+make fmt
+
+# Run linter
+make lint
+
+# Install development tools
+make install-tools
+``` (get one from [FACEIT Developers](https://developers.faceit.com/))
 
 ## Installation
 
@@ -166,13 +208,27 @@ The matches screen now supports full navigation through all recent matches:
 - **Detailed View**: Press `Enter` or `D` to view detailed statistics for the selected match
 - **All Matches**: Navigate through all 20 recent matches, not just the first 10
 
+## CI/CD
+
+This project uses GitHub Actions for automated testing, building, and releasing:
+
+- **Automated Testing**: Runs tests on every push and pull request
+- **Multi-platform Builds**: Builds binaries for Linux, Windows, and macOS
+- **Automatic Releases**: Creates releases when version tags are pushed
+- **Code Quality**: Runs linters and coverage reports
+
+See [.github/README.md](.github/README.md) for detailed information about the CI/CD pipeline.
+
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+4. Run tests: `make test`
+5. Run linter: `make lint`
+6. Submit a pull request
+
+The CI/CD pipeline will automatically test your changes before they can be merged.
 
 ## License
 
