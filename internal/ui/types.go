@@ -125,27 +125,8 @@ var (
 			Background(lipgloss.Color("#7D56F4")).
 			Padding(0, 1)
 
-	subtitleStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#7D56F4")).
-			Bold(true)
-
-	infoStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#626262"))
-
-	successStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575"))
-
 	errorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF5F87"))
-
-	borderStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#874BFD")).
-			Padding(1, 2)
-
-	selectedStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575")).
-			Bold(true)
 
 	matchDetailStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).

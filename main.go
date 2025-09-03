@@ -23,9 +23,7 @@ func main() {
 	}
 
 	// Load environment variables from .env file if it exists
-	if err := godotenv.Load(); err != nil {
-		// .env file is optional, so we don't treat this as an error
-	}
+	_ = godotenv.Load() // .env file is optional, so we ignore errors
 
 	cfg, err := config.Load()
 	if err != nil {
