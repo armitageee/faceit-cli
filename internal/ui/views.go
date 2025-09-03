@@ -37,6 +37,15 @@ func (m AppModel) viewProfile() string {
 		content.WriteString(fmt.Sprintf("  ELO: %d\n", cs2.Elo))
 		content.WriteString(fmt.Sprintf("  Skill Level: %d\n", cs2.SkillLevel))
 		content.WriteString(fmt.Sprintf("  Region: %s\n", cs2.Region))
+		
+		// Add lifetime statistics if available
+		if m.lifetimeStats != nil {
+			kdRatio, totalMatches, winRate := extractLifetimeStats(m.lifetimeStats)
+			content.WriteString("\n📊 Lifetime Statistics:\n")
+			content.WriteString(fmt.Sprintf("  K/D Ratio: %.2f\n", kdRatio))
+			content.WriteString(fmt.Sprintf("  Total Matches: %d\n", totalMatches))
+			content.WriteString(fmt.Sprintf("  Win Rate: %.1f%%\n", winRate))
+		}
 	}
 
 	profile := profileStyle.Render(content.String())

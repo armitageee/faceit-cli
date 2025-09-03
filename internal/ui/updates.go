@@ -394,3 +394,34 @@ func (m AppModel) loadPlayerComparison(friendNickname string) tea.Cmd {
 		return comparisonLoadedMsg{comparison: comparison}
 	}
 }
+
+// loadLifetimeStats loads lifetime statistics for the current player
+func (m AppModel) loadLifetimeStats() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// Get lifetime stats from repository - try different game IDs
+		var stats *entity.PlayerStats
+		var err error
+		
+		// Try CS2 first
+		stats, err = m.repo.GetPlayerStats(ctx, m.player.ID, "cs2")
+		if err != nil || stats == nil || stats.Lifetime == nil || len(stats.Lifetime) == 0 {
+			// Try CS:GO as fallback
+			stats, err = m.repo.GetPlayerStats(ctx, m.player.ID, "csgo")
+			if err != nil || stats == nil || stats.Lifetime == nil || len(stats.Lifetime) == 0 {
+				// Try Counter-Strike 2
+				stats, err = m.repo.GetPlayerStats(ctx, m.player.ID, "Counter-Strike 2")
+			}
+		}
+		
+		if err != nil {
+			return errorMsg{err: fmt.Sprintf("Failed to load lifetime stats: %v", err)}
+		}
+
+
+
+		return lifetimeStatsLoadedMsg{stats: stats}
+	}
+}

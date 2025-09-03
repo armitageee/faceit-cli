@@ -124,6 +124,7 @@ type AppModel struct {
 	player             *entity.PlayerProfile
 	matches            []entity.PlayerMatchSummary
 	stats              *PlayerStatsSummary
+	lifetimeStats      *entity.PlayerStats
 	matchDetail        *MatchDetail
 	selectedMatchIndex int
 	playerSwitchInput  string
@@ -147,6 +148,10 @@ type matchDetailLoadedMsg struct {
 
 type comparisonLoadedMsg struct {
 	comparison PlayerComparison
+}
+
+type lifetimeStatsLoadedMsg struct {
+	stats *entity.PlayerStats
 }
 
 // Styling constants
