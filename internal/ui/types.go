@@ -18,6 +18,8 @@ const (
 	StateStats
 	StateMatchDetail
 	StatePlayerSwitch
+	StateComparisonInput
+	StateComparison
 	StateLoading
 	StateError
 )
@@ -90,6 +92,29 @@ type PerformanceMetrics struct {
 	SupportScore     float64
 }
 
+// PlayerComparison represents comparison data between two players
+type PlayerComparison struct {
+	Player1Nickname string
+	Player2Nickname string
+	Player1Stats    PlayerStatsSummary
+	Player2Stats    PlayerStatsSummary
+	ComparisonData  ComparisonData
+}
+
+// ComparisonData represents detailed comparison metrics
+type ComparisonData struct {
+	KDRatioDiff      float64
+	WinRateDiff      float64
+	AverageHSDiff    float64
+	TotalKillsDiff   int
+	TotalDeathsDiff  int
+	TotalAssistsDiff int
+	BestKDDiff       float64
+	WorstKDDiff      float64
+	MostPlayedMap    string
+	CommonMaps       []string
+}
+
 // AppModel represents the main application model
 type AppModel struct {
 	state              AppState
@@ -103,6 +128,8 @@ type AppModel struct {
 	selectedMatchIndex int
 	playerSwitchInput  string
 	recentPlayers      []string
+	comparison         *PlayerComparison
+	comparisonInput    string
 	error              string
 	loading            bool
 	width              int
@@ -116,6 +143,10 @@ type statsLoadedMsg struct {
 
 type matchDetailLoadedMsg struct {
 	matchDetail MatchDetail
+}
+
+type comparisonLoadedMsg struct {
+	comparison PlayerComparison
 }
 
 // Styling constants
@@ -133,4 +164,26 @@ var (
 			BorderForeground(lipgloss.Color("#7D56F4")).
 			Padding(1, 2).
 			Margin(1, 0)
+
+	comparisonStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#7D56F4")).
+			Padding(1, 2).
+			Margin(1, 0)
+
+	player1Style = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#4ECDC4")).
+			Bold(true)
+
+	player2Style = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FF6B6B")).
+			Bold(true)
+
+	betterStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#96CEB4")).
+			Bold(true)
+
+	worseStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FF5F87")).
+			Bold(true)
 )

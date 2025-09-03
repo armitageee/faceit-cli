@@ -54,6 +54,11 @@ func (m AppModel) updateProfile(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.loading = true
 		m.state = StateLoading
 		return m, m.loadStatistics()
+	case "c":
+		// Compare with friend
+		m.state = StateComparisonInput
+		m.comparisonInput = ""
+		return m, nil
 	case "p":
 		// Switch player
 		m.state = StatePlayerSwitch
@@ -302,4 +307,90 @@ func (m AppModel) extractEnemyTeamScore(score string) int {
 		}
 	}
 	return 0
+}
+
+// updateComparisonInput handles key events in the comparison input state
+func (m AppModel) updateComparisonInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc":
+		m.state = StateProfile
+		m.comparisonInput = ""
+		return m, nil
+	case "enter":
+		if strings.TrimSpace(m.comparisonInput) != "" {
+			m.loading = true
+			m.state = StateLoading
+			return m, m.loadPlayerComparison(m.comparisonInput)
+		}
+	case "backspace":
+		if len(m.comparisonInput) > 0 {
+			m.comparisonInput = m.comparisonInput[:len(m.comparisonInput)-1]
+		}
+	default:
+		if len(msg.String()) == 1 {
+			m.comparisonInput += msg.String()
+		}
+	}
+	return m, nil
+}
+
+// updateComparison handles key events in the comparison state
+func (m AppModel) updateComparison(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc":
+		m.state = StateProfile
+		m.comparison = nil
+		return m, nil
+	}
+	return m, nil
+}
+
+// loadPlayerComparison loads comparison data between current player and friend
+func (m AppModel) loadPlayerComparison(friendNickname string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		// Get friend's profile
+		friendProfile, err := m.repo.GetPlayerByNickname(ctx, friendNickname)
+		if err != nil {
+			return errorMsg{err: fmt.Sprintf("Failed to load friend's profile: %v", err)}
+		}
+
+		// Get friend's recent matches
+		friendMatches, err := m.repo.GetPlayerRecentMatches(ctx, friendProfile.ID, "cs2", 20)
+		if err != nil {
+			return errorMsg{err: fmt.Sprintf("Failed to load friend's matches: %v", err)}
+		}
+
+		// Get current player's recent matches (if not already loaded)
+		var currentMatches []entity.PlayerMatchSummary
+		if len(m.matches) == 0 {
+			currentMatches, err = m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", 20)
+			if err != nil {
+				return errorMsg{err: fmt.Sprintf("Failed to load current player's matches: %v", err)}
+			}
+		} else {
+			currentMatches = m.matches
+		}
+
+		// Calculate stats for both players
+		currentStats := calculateStats(currentMatches)
+		friendStats := calculateStats(friendMatches)
+
+		// Create comparison data
+		comparison := PlayerComparison{
+			Player1Nickname: m.player.Nickname,
+			Player2Nickname: friendProfile.Nickname,
+			Player1Stats:    currentStats,
+			Player2Stats:    friendStats,
+			ComparisonData:  calculateComparisonData(currentStats, friendStats),
+		}
+
+		return comparisonLoadedMsg{comparison: comparison}
+	}
 }

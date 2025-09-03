@@ -40,7 +40,7 @@ func (m AppModel) viewProfile() string {
 	}
 
 	profile := profileStyle.Render(content.String())
-	help := helpStyle.Render("M - Recent matches • S - Statistics (20 matches) • P - Switch player • Esc - Back to search • Ctrl+C or Q to quit")
+	help := helpStyle.Render("M - Recent matches • S - Statistics (20 matches) • C - Compare with friend • P - Switch player • Esc - Back to search • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, profile, help))
@@ -255,6 +255,88 @@ func (m AppModel) viewPlayerSwitch() string {
 	
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, playerSwitch, help))
+}
+
+// viewComparison renders the player comparison screen
+func (m AppModel) viewComparison() string {
+	if m.comparison == nil {
+		return "No comparison data"
+	}
+
+	asciiTitle := generateASCIILogo()
+	title := titleStyle.Render("⚔️ Player Comparison")
+	
+	var content strings.Builder
+	
+	// Player names
+	content.WriteString(fmt.Sprintf("%s vs %s\n\n", 
+		player1Style.Render(m.comparison.Player1Nickname),
+		player2Style.Render(m.comparison.Player2Nickname)))
+	
+	// Basic stats comparison
+	content.WriteString("📊 Basic Statistics:\n")
+	content.WriteString(fmt.Sprintf("  K/D Ratio: %.2f vs %.2f (%s)\n", 
+		m.comparison.Player1Stats.AverageKDRatio,
+		m.comparison.Player2Stats.AverageKDRatio,
+		formatComparisonValue(m.comparison.ComparisonData.KDRatioDiff, m.comparison.ComparisonData.KDRatioDiff > 0)))
+	
+	content.WriteString(fmt.Sprintf("  Win Rate: %.1f%% vs %.1f%% (%s%%)\n", 
+		m.comparison.Player1Stats.WinRate,
+		m.comparison.Player2Stats.WinRate,
+		formatComparisonValue(m.comparison.ComparisonData.WinRateDiff, m.comparison.ComparisonData.WinRateDiff > 0)))
+	
+	content.WriteString(fmt.Sprintf("  Headshots: %.1f%% vs %.1f%% (%s%%)\n", 
+		m.comparison.Player1Stats.AverageHS,
+		m.comparison.Player2Stats.AverageHS,
+		formatComparisonValue(m.comparison.ComparisonData.AverageHSDiff, m.comparison.ComparisonData.AverageHSDiff > 0)))
+	
+	content.WriteString("\n🎯 Kills & Deaths:\n")
+	content.WriteString(fmt.Sprintf("  Total Kills: %d vs %d (%s)\n", 
+		m.comparison.Player1Stats.TotalKills,
+		m.comparison.Player2Stats.TotalKills,
+		formatComparisonInt(m.comparison.ComparisonData.TotalKillsDiff, m.comparison.ComparisonData.TotalKillsDiff > 0)))
+	
+	content.WriteString(fmt.Sprintf("  Total Deaths: %d vs %d (%s)\n", 
+		m.comparison.Player1Stats.TotalDeaths,
+		m.comparison.Player2Stats.TotalDeaths,
+		formatComparisonInt(m.comparison.ComparisonData.TotalDeathsDiff, m.comparison.ComparisonData.TotalDeathsDiff < 0)))
+	
+	content.WriteString(fmt.Sprintf("  Total Assists: %d vs %d (%s)\n", 
+		m.comparison.Player1Stats.TotalAssists,
+		m.comparison.Player2Stats.TotalAssists,
+		formatComparisonInt(m.comparison.ComparisonData.TotalAssistsDiff, m.comparison.ComparisonData.TotalAssistsDiff > 0)))
+	
+	content.WriteString("\n🏆 Performance:\n")
+	content.WriteString(fmt.Sprintf("  Best K/D: %.2f vs %.2f (%s)\n", 
+		m.comparison.Player1Stats.BestKDRatio,
+		m.comparison.Player2Stats.BestKDRatio,
+		formatComparisonValue(m.comparison.ComparisonData.BestKDDiff, m.comparison.ComparisonData.BestKDDiff > 0)))
+	
+	content.WriteString(fmt.Sprintf("  Worst K/D: %.2f vs %.2f (%s)\n", 
+		m.comparison.Player1Stats.WorstKDRatio,
+		m.comparison.Player2Stats.WorstKDRatio,
+		formatComparisonValue(m.comparison.ComparisonData.WorstKDDiff, m.comparison.ComparisonData.WorstKDDiff > 0)))
+	
+	content.WriteString("\n🗺️ Maps:\n")
+	content.WriteString(fmt.Sprintf("  Most Played Together: %s\n", m.comparison.ComparisonData.MostPlayedMap))
+	content.WriteString(fmt.Sprintf("  Common Maps: %d\n", len(m.comparison.ComparisonData.CommonMaps)))
+	
+	comparison := comparisonStyle.Render(content.String())
+	help := helpStyle.Render("Esc - Back to profile • Ctrl+C or Q to quit")
+	
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, comparison, help))
+}
+
+// viewComparisonInput renders the comparison input screen
+func (m AppModel) viewComparisonInput() string {
+	asciiTitle := generateASCIILogo()
+	title := titleStyle.Render("⚔️ Compare with Friend")
+	search := searchStyle.Render(fmt.Sprintf("Enter friend's nickname:\n\n%s", m.comparisonInput))
+	help := helpStyle.Render("Press Enter to compare • Esc - Back to profile • Ctrl+C or Q to quit")
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, search, help))
 }
 
 // viewError renders the error screen
