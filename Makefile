@@ -31,19 +31,45 @@ build-all:
 	GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o dist/$(BINARY_NAME)-darwin-arm64 main.go
 	@echo "Build complete! Binaries are in the dist/ directory"
 
-# Run tests
+# Run unit tests (fast, no external dependencies)
 .PHONY: test
 test:
-	@echo "Running tests..."
-	go test -v -race ./...
+	@echo "Running unit tests..."
+	go test -v -race -short ./...
+
+# Run integration tests (requires FACEIT_API_KEY)
+.PHONY: test-integration
+test-integration:
+	@echo "Running integration tests..."
+	@if [ -z "$$FACEIT_API_KEY" ]; then \
+		echo "Error: FACEIT_API_KEY environment variable is required for integration tests"; \
+		echo "Set it with: export FACEIT_API_KEY=your_api_key"; \
+		exit 1; \
+	fi
+	go test -v -race ./internal/repository/
+
+# Run all tests (unit + integration)
+.PHONY: test-all
+test-all: test test-integration
 
 # Run tests with coverage
 .PHONY: test-coverage
 test-coverage:
 	@echo "Running tests with coverage..."
-	go test -v -race -coverprofile=coverage.out ./...
+	go test -v -race -coverprofile=coverage.out -short ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
+
+# Run benchmarks
+.PHONY: benchmark
+benchmark:
+	@echo "Running benchmarks..."
+	@if [ -z "$$FACEIT_API_KEY" ]; then \
+		echo "Error: FACEIT_API_KEY environment variable is required for benchmarks"; \
+		echo "Set it with: export FACEIT_API_KEY=your_api_key"; \
+		exit 1; \
+	fi
+	go test -v -bench=. ./internal/repository/
 
 # Run linting
 .PHONY: lint
@@ -158,8 +184,11 @@ help:
 	@echo "Available targets:"
 	@echo "  build         - Build the binary"
 	@echo "  build-all     - Build for multiple platforms"
-	@echo "  test          - Run tests"
+	@echo "  test          - Run unit tests (fast, no external dependencies)"
+	@echo "  test-integration - Run integration tests (requires FACEIT_API_KEY)"
+	@echo "  test-all      - Run all tests (unit + integration)"
 	@echo "  test-coverage - Run tests with coverage report"
+	@echo "  benchmark     - Run benchmarks (requires FACEIT_API_KEY)"
 	@echo "  lint          - Run linter"
 	@echo "  fmt           - Format code"
 	@echo "  clean         - Clean build artifacts"
