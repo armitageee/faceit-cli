@@ -229,4 +229,43 @@ var (
 	worseStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF5F87")).
 			Bold(true)
+
+	// Match detail styles
+	matchInfoStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#E8E8E8")).
+			Bold(true)
+
+	matchValueStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Bold(true)
+
+	winnerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFD700")).
+			Bold(true)
+
+	team1Style = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#4A90E2")).
+			Bold(true)
+
+	team2Style = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#E74C3C")).
+			Bold(true)
+
+	tableHeaderStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#B0B0B0")).
+			Bold(true)
+
+	playerNameStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Bold(true)
+
+	statsValueStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#E0E0E0"))
+
+	separatorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#555555"))
+
+	helpTextStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#888888")).
+			Italic(true)
 )

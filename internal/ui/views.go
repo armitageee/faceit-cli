@@ -48,48 +48,62 @@ func (m AppModel) viewMatchStats() string {
 	
 	var content strings.Builder
 	
-	// Match header
-	content.WriteString(fmt.Sprintf("🎮 Match ID: %s\n", m.matchStats.MatchID))
-	content.WriteString(fmt.Sprintf("🗺️  Map: %s\n", m.matchStats.Map))
-	content.WriteString(fmt.Sprintf("📊 Final Score: %s\n", m.matchStats.Score))
-	content.WriteString(fmt.Sprintf("✅ Status: %s\n", m.matchStats.Result))
+	// Match information with colors
+	content.WriteString(fmt.Sprintf("%s %s\n", 
+		matchInfoStyle.Render("🎮 Match ID:"), 
+		matchValueStyle.Render(m.matchStats.MatchID)))
+	content.WriteString(fmt.Sprintf("%s %s\n", 
+		matchInfoStyle.Render("🗺️  Map:"), 
+		matchValueStyle.Render(m.matchStats.Map)))
+	content.WriteString(fmt.Sprintf("%s %s\n", 
+		matchInfoStyle.Render("📊 Final Score:"), 
+		matchValueStyle.Render(m.matchStats.Score)))
+	content.WriteString(fmt.Sprintf("%s %s\n", 
+		matchInfoStyle.Render("✅ Status:"), 
+		matchValueStyle.Render(m.matchStats.Result)))
 	
-	// Determine winner
+	// Determine winner with golden color
 	winner := "Draw"
 	if m.matchStats.Team1.Score > m.matchStats.Team2.Score {
 		winner = fmt.Sprintf("🏆 Winner: %s", m.matchStats.Team1.TeamName)
 	} else if m.matchStats.Team2.Score > m.matchStats.Team1.Score {
 		winner = fmt.Sprintf("🏆 Winner: %s", m.matchStats.Team2.TeamName)
 	}
-	content.WriteString(fmt.Sprintf("%s\n\n", winner))
+	content.WriteString(fmt.Sprintf("%s\n\n", winnerStyle.Render(winner)))
 	
-	// Team 1 header
-	content.WriteString(fmt.Sprintf("🔵 %s (Score: %d)\n", m.matchStats.Team1.TeamName, m.matchStats.Team1.Score))
-	content.WriteString("────────────────────────────────────────────────\n")
-	content.WriteString("Player          K   D   A   K/D   HS%   ADR\n")
-	content.WriteString("────────────────────────────────────────────────\n")
+	// Team 1 header with blue color
+	team1Header := fmt.Sprintf("🔵 %s (Score: %d)", m.matchStats.Team1.TeamName, m.matchStats.Team1.Score)
+	content.WriteString(team1Style.Render(team1Header) + "\n")
+	content.WriteString(separatorStyle.Render("────────────────────────────────────────────────") + "\n")
+	content.WriteString(tableHeaderStyle.Render("Player          K   D   A   K/D   HS%   ADR") + "\n")
+	content.WriteString(separatorStyle.Render("────────────────────────────────────────────────") + "\n")
 	
 	for _, player := range m.matchStats.Team1.Players {
-		content.WriteString(fmt.Sprintf("%-15s %2d  %2d  %2d  %4.2f  %4.1f  %5.1f\n", 
-			player.Nickname, player.Kills, player.Deaths, player.Assists, 
+		playerName := playerNameStyle.Render(fmt.Sprintf("%-15s", player.Nickname))
+		stats := statsValueStyle.Render(fmt.Sprintf(" %2d  %2d  %2d  %4.2f  %4.1f  %5.1f",
+			player.Kills, player.Deaths, player.Assists,
 			player.KDRatio, player.HeadshotsPercentage, player.ADR))
+		content.WriteString(playerName + stats + "\n")
 	}
 	
 	content.WriteString("\n")
 	
-	// Team 2 header
-	content.WriteString(fmt.Sprintf("🔴 %s (Score: %d)\n", m.matchStats.Team2.TeamName, m.matchStats.Team2.Score))
-	content.WriteString("────────────────────────────────────────────────\n")
-	content.WriteString("Player          K   D   A   K/D   HS%   ADR\n")
-	content.WriteString("────────────────────────────────────────────────\n")
+	// Team 2 header with red color
+	team2Header := fmt.Sprintf("🔴 %s (Score: %d)", m.matchStats.Team2.TeamName, m.matchStats.Team2.Score)
+	content.WriteString(team2Style.Render(team2Header) + "\n")
+	content.WriteString(separatorStyle.Render("────────────────────────────────────────────────") + "\n")
+	content.WriteString(tableHeaderStyle.Render("Player          K   D   A   K/D   HS%   ADR") + "\n")
+	content.WriteString(separatorStyle.Render("────────────────────────────────────────────────") + "\n")
 	
 	for _, player := range m.matchStats.Team2.Players {
-		content.WriteString(fmt.Sprintf("%-15s %2d  %2d  %2d  %4.2f  %4.1f  %5.1f\n", 
-			player.Nickname, player.Kills, player.Deaths, player.Assists, 
+		playerName := playerNameStyle.Render(fmt.Sprintf("%-15s", player.Nickname))
+		stats := statsValueStyle.Render(fmt.Sprintf(" %2d  %2d  %2d  %4.2f  %4.1f  %5.1f",
+			player.Kills, player.Deaths, player.Assists,
 			player.KDRatio, player.HeadshotsPercentage, player.ADR))
+		content.WriteString(playerName + stats + "\n")
 	}
 	
-	content.WriteString("\n📝 Press 'q' to go back to search")
+	content.WriteString("\n" + helpTextStyle.Render("📝 Press 'q' to go back to search"))
 	
 	help := helpStyle.Render(content.String())
 
@@ -477,47 +491,63 @@ func (m AppModel) viewPlayerMatchDetail() string {
 	title := titleStyle.Render("📊 Match Statistics")
 
 	var content strings.Builder
-	content.WriteString(fmt.Sprintf("🎮 Match ID: %s\n", m.playerMatchStats.MatchID))
-	content.WriteString(fmt.Sprintf("🗺️  Map: %s\n", m.playerMatchStats.Map))
-	content.WriteString(fmt.Sprintf("📊 Final Score: %s\n", m.playerMatchStats.Score))
-	content.WriteString(fmt.Sprintf("✅ Status: %s\n", m.playerMatchStats.Result))
+	
+	// Match information with colors
+	content.WriteString(fmt.Sprintf("%s %s\n", 
+		matchInfoStyle.Render("🎮 Match ID:"), 
+		matchValueStyle.Render(m.playerMatchStats.MatchID)))
+	content.WriteString(fmt.Sprintf("%s %s\n", 
+		matchInfoStyle.Render("🗺️  Map:"), 
+		matchValueStyle.Render(m.playerMatchStats.Map)))
+	content.WriteString(fmt.Sprintf("%s %s\n", 
+		matchInfoStyle.Render("📊 Final Score:"), 
+		matchValueStyle.Render(m.playerMatchStats.Score)))
+	content.WriteString(fmt.Sprintf("%s %s\n", 
+		matchInfoStyle.Render("✅ Status:"), 
+		matchValueStyle.Render(m.playerMatchStats.Result)))
 
-	// Determine winner
+	// Determine winner with golden color
 	winner := "Draw"
 	if m.playerMatchStats.Team1.Score > m.playerMatchStats.Team2.Score {
 		winner = fmt.Sprintf("🏆 Winner: %s", m.playerMatchStats.Team1.TeamName)
 	} else if m.playerMatchStats.Team2.Score > m.playerMatchStats.Team1.Score {
 		winner = fmt.Sprintf("🏆 Winner: %s", m.playerMatchStats.Team2.TeamName)
 	}
-	content.WriteString(fmt.Sprintf("%s\n\n", winner))
+	content.WriteString(fmt.Sprintf("%s\n\n", winnerStyle.Render(winner)))
 
-	// Team 1 header
-	content.WriteString(fmt.Sprintf("🔵 %s (Score: %d)\n", m.playerMatchStats.Team1.TeamName, m.playerMatchStats.Team1.Score))
-	content.WriteString("────────────────────────────────────────────────\n")
-	content.WriteString("Player          K   D   A   K/D   HS%   ADR\n")
-	content.WriteString("────────────────────────────────────────────────\n")
+	// Team 1 header with blue color
+	team1Header := fmt.Sprintf("🔵 %s (Score: %d)", m.playerMatchStats.Team1.TeamName, m.playerMatchStats.Team1.Score)
+	content.WriteString(team1Style.Render(team1Header) + "\n")
+	content.WriteString(separatorStyle.Render("────────────────────────────────────────────────") + "\n")
+	content.WriteString(tableHeaderStyle.Render("Player          K   D   A   K/D   HS%   ADR") + "\n")
+	content.WriteString(separatorStyle.Render("────────────────────────────────────────────────") + "\n")
 
 	for _, player := range m.playerMatchStats.Team1.Players {
-		content.WriteString(fmt.Sprintf("%-15s %2d  %2d  %2d  %4.2f  %4.1f  %5.1f\n",
-			player.Nickname, player.Kills, player.Deaths, player.Assists,
+		playerName := playerNameStyle.Render(fmt.Sprintf("%-15s", player.Nickname))
+		stats := statsValueStyle.Render(fmt.Sprintf(" %2d  %2d  %2d  %4.2f  %4.1f  %5.1f",
+			player.Kills, player.Deaths, player.Assists,
 			player.KDRatio, player.HeadshotsPercentage, player.ADR))
+		content.WriteString(playerName + stats + "\n")
 	}
 
 	content.WriteString("\n")
 
-	// Team 2 header
-	content.WriteString(fmt.Sprintf("🔴 %s (Score: %d)\n", m.playerMatchStats.Team2.TeamName, m.playerMatchStats.Team2.Score))
-	content.WriteString("────────────────────────────────────────────────\n")
-	content.WriteString("Player          K   D   A   K/D   HS%   ADR\n")
-	content.WriteString("────────────────────────────────────────────────\n")
+	// Team 2 header with red color
+	team2Header := fmt.Sprintf("🔴 %s (Score: %d)", m.playerMatchStats.Team2.TeamName, m.playerMatchStats.Team2.Score)
+	content.WriteString(team2Style.Render(team2Header) + "\n")
+	content.WriteString(separatorStyle.Render("────────────────────────────────────────────────") + "\n")
+	content.WriteString(tableHeaderStyle.Render("Player          K   D   A   K/D   HS%   ADR") + "\n")
+	content.WriteString(separatorStyle.Render("────────────────────────────────────────────────") + "\n")
 
 	for _, player := range m.playerMatchStats.Team2.Players {
-		content.WriteString(fmt.Sprintf("%-15s %2d  %2d  %2d  %4.2f  %4.1f  %5.1f\n",
-			player.Nickname, player.Kills, player.Deaths, player.Assists,
+		playerName := playerNameStyle.Render(fmt.Sprintf("%-15s", player.Nickname))
+		stats := statsValueStyle.Render(fmt.Sprintf(" %2d  %2d  %2d  %4.2f  %4.1f  %5.1f",
+			player.Kills, player.Deaths, player.Assists,
 			player.KDRatio, player.HeadshotsPercentage, player.ADR))
+		content.WriteString(playerName + stats + "\n")
 	}
 
-	content.WriteString("\n📝 Press 'Esc' to go back to matches")
+	content.WriteString("\n" + helpTextStyle.Render("📝 Press 'Esc' to go back to matches"))
 
 	help := helpStyle.Render(content.String())
 
