@@ -678,10 +678,3 @@ func (r *faceitRepository) GetMatchStats(ctx context.Context, matchID string) (*
 	return matchStats, nil
 }
 
-// max returns the maximum of two integers
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

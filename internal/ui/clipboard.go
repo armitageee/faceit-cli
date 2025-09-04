@@ -33,7 +33,3 @@ func GetClipboardContent() (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// isPasteKey checks if the key combination is a paste command
-func isPasteKey(key string) bool {
-	return key == "ctrl+v" || key == "cmd+v"
-}
