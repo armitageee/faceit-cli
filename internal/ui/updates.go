@@ -236,15 +236,6 @@ func (m AppModel) loadRecentMatches() tea.Cmd {
 	}
 }
 
-// loadMatchesPage is no longer needed since we paginate client-side
-// This function is kept for compatibility but does nothing
-func (m AppModel) loadMatchesPage(page int) tea.Cmd {
-	return func() tea.Msg {
-		// Since we now load all matches at once, pagination is handled client-side
-		// This function is kept for compatibility but returns immediately
-		return nil
-	}
-}
 
 // loadBackgroundMatches loads matches in the background for better UX
 func (m AppModel) loadBackgroundMatches() tea.Cmd {
