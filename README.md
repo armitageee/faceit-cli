@@ -68,26 +68,55 @@ Create a `.env` file in the project root:
 # Required
 FACEIT_API_KEY=your_api_key_here
 
-# Optional
+# Optional - Player Settings
 FACEIT_DEFAULT_PLAYER=your_nickname_here
-LOG_LEVEL=info
-CACHE_ENABLED=true
-CACHE_TTL=30
 COMPARISON_MATCHES=20
 MATCHES_PER_PAGE=10
 MAX_MATCHES_TO_LOAD=100
+
+# Optional - Logging
+LOG_LEVEL=info
+LOG_TO_STDOUT=true
+
+# Optional - Caching
+CACHE_ENABLED=true
+CACHE_TTL=30
+
+# Optional - Kafka Integration
+KAFKA_ENABLED=false
+KAFKA_BROKERS=localhost:9092
+KAFKA_TOPIC=faceit-cli-logs
+
+# Optional - Production Mode
+PRODUCTION_MODE=false
 ```
 
 ### Environment Variables
 
+**Required:**
 - `FACEIT_API_KEY` (required): Your FACEIT API key
+
+**Player Settings:**
 - `FACEIT_DEFAULT_PLAYER` (optional): Default player nickname to load on startup
-- `LOG_LEVEL` (optional): Log level - debug/info/warn/error (default: info)
-- `CACHE_ENABLED` (optional): Enable API response caching - true/false (default: false)
-- `CACHE_TTL` (optional): Cache TTL in minutes (default: 30)
 - `COMPARISON_MATCHES` (optional): Number of matches to use for player comparison (default: 20)
 - `MATCHES_PER_PAGE` (optional): Matches per page (default: 10)
 - `MAX_MATCHES_TO_LOAD` (optional): Maximum matches to load (default: 100)
+
+**Logging:**
+- `LOG_LEVEL` (optional): Log level - debug/info/warn/error (default: info)
+- `LOG_TO_STDOUT` (optional): Log to stdout - true/false (default: true)
+
+**Caching:**
+- `CACHE_ENABLED` (optional): Enable API response caching - true/false (default: false)
+- `CACHE_TTL` (optional): Cache TTL in minutes (default: 30)
+
+**Kafka Integration:**
+- `KAFKA_ENABLED` (optional): Enable Kafka logging - true/false (default: false)
+- `KAFKA_BROKERS` (optional): Kafka brokers - comma-separated (default: localhost:9092)
+- `KAFKA_TOPIC` (optional): Kafka topic for logs (default: faceit-cli-logs)
+
+**Production Mode:**
+- `PRODUCTION_MODE` (optional): Enable production mode - true/false (default: false)
 
 ## Usage
 
