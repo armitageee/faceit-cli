@@ -11,6 +11,8 @@ A beautiful terminal user interface (TUI) for viewing FACEIT player profiles and
 - 🏆 Browse recent match history with detailed statistics and pagination
 - 📊 View comprehensive statistics over last 20 matches
 - 🔍 Detailed match analysis with advanced metrics
+- 🎮 Search matches by ID with full team statistics
+- 📈 View detailed match statistics from player profile
 - ⚔️ Compare your stats with friends over last 20 matches
 - 🔄 Switch between players without restarting
 - 💾 Remember default player via environment variable
@@ -118,6 +120,11 @@ PRODUCTION_MODE=false
 - `MATCHES_PER_PAGE` (optional): Matches per page (default: 10)
 - `MAX_MATCHES_TO_LOAD` (optional): Maximum matches to load (default: 100)
 
+**Match Search:**
+- Match search supports both typing and pasting match IDs
+- Clipboard paste works with `Ctrl+V`, `Cmd+V`, `F2`, or `P` keys
+- Cross-platform clipboard support (macOS, Linux, Windows)
+
 **Logging:**
 - `LOG_LEVEL` (optional): Log level - debug/info/warn/error (default: info)
 - `LOG_TO_STDOUT` (optional): Log to stdout - true/false (default: true)
@@ -142,15 +149,55 @@ PRODUCTION_MODE=false
 4. **View statistics**: Press `S` to see comprehensive stats over last 20 matches
 5. **Compare players**: Press `C` to compare with a friend
 6. **Switch players**: Press `P` to switch to another player
-7. **View match details**: Press `Enter` or `D` on any match for detailed analysis
+7. **Search matches by ID**: Press `2` from main menu to search for a specific match
+8. **View match details**: Press `Enter` on any match for detailed player analysis
+9. **View match statistics**: Press `D` on any match to see full team statistics
 
 ## Controls
 
-- `↑↓` or `KJ` - Navigate
+### Navigation
+- `↑↓` or `KJ` - Navigate up/down
 - `←→` or `HL` - Change pages (in matches view)
-- `Enter` or `D` - View details
 - `Esc` - Go back
 - `Ctrl+C` or `Q` - Quit
+
+### Match Viewing
+- `Enter` - View detailed player analysis for selected match
+- `D` - View full team statistics for selected match
+- `Ctrl+V`, `Cmd+V`, `F2`, `P` - Paste match ID from clipboard
+
+### Search
+- `1` - Search player by nickname
+- `2` - Search match by ID
+
+## Match Search & Analysis
+
+### 🔍 Search Matches by ID
+
+The application now supports searching for specific matches by their FACEIT match ID:
+
+1. **From main menu**: Press `2` to access match search
+2. **Enter match ID**: Type or paste the match ID (e.g., `1-e2e2f23c-31f7-48d1-baec-025077812cfa`)
+3. **Paste support**: Use `Ctrl+V`, `Cmd+V`, `F2`, or `P` to paste from clipboard
+4. **View results**: See complete match statistics with all players
+
+### 📊 Match Statistics View
+
+When viewing match statistics, you'll see:
+
+- **Match Information**: ID, map, final score, status
+- **Winner**: Clearly displayed winning team
+- **Team Statistics**: Complete player stats for both teams
+- **Player Details**: K/D/A, HS%, ADR for each player
+- **Navigation**: Easy return to search with `Esc` or `Q`
+
+### 🎮 Player Match Analysis
+
+From the player profile matches view:
+
+- **Enter**: View detailed analysis of the selected match (player-focused)
+- **D**: View complete team statistics for the selected match
+- **Two modes**: Switch between player analysis and team overview
 
 ## Performance Optimizations
 

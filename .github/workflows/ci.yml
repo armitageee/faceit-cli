@@ -1,10 +1,28 @@
 name: CI/CD Pipeline
 
+# This workflow runs only when core application files are changed
+# Triggers: internal/**, main.go, go.mod, go.sum, Dockerfile, .dockerignore, workflow files
 on:
   push:
     branches: [ main, develop ]
+    paths:
+      - 'internal/**'           # Core application code
+      - 'main.go'               # Main application entry point
+      - 'go.mod'                # Go module dependencies
+      - 'go.sum'                # Go module checksums
+      - 'Dockerfile'            # Docker configuration
+      - '.dockerignore'         # Docker ignore file
+      - '.github/workflows/**'  # CI/CD workflow changes
   pull_request:
     branches: [ main ]
+    paths:
+      - 'internal/**'
+      - 'main.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/**'
   release:
     types: [ published ]
 

@@ -1,162 +1,131 @@
 # GitHub Actions Workflows
 
-This repository includes automated CI/CD workflows for testing, building, and releasing the faceit-cli application.
+This directory contains GitHub Actions workflows for CI/CD automation. Each workflow is designed to run only when specific files are changed, optimizing build times and resource usage.
 
-## Workflows
+## Workflows Overview
 
-### 1. CI/CD Pipeline (`.github/workflows/ci.yml`)
+### 🔧 CI/CD Pipeline (`ci.yml`)
+**Triggers:** Core application files, Go modules, Docker files, workflow changes
+- **Unit Tests**: Runs Go unit tests with coverage
+- **Integration Tests**: Runs integration tests (only on main/develop branches)
+- **Linting**: Runs golangci-lint for code quality
 
-**Triggers:**
-- Push to `main` or `develop` branches
-- Pull requests to `main` branch
-- Release events
+**Files that trigger this workflow:**
+- `internal/**` - Core application code
+- `main.go` - Main application entry point
+- `go.mod` / `go.sum` - Go module dependencies
+- `Dockerfile` / `.dockerignore` - Docker configuration
+- `.github/workflows/**` - CI/CD workflow changes
 
-**Jobs:**
+### 🐳 Docker Build (`docker.yml`)
+**Triggers:** Application files, Docker files, Docker workflow changes
+- **Multi-architecture builds** (linux/amd64, linux/arm64)
+- **Automatic publishing** to GitHub Container Registry
+- **Build caching** for faster builds
 
-#### Test Job
-- Runs on Ubuntu latest
-- Sets up Go 1.24
-- Runs tests with race detection
-- Generates coverage reports
-- Uploads coverage to Codecov
+**Files that trigger this workflow:**
+- `internal/**` - Core application code
+- `main.go` - Main application entry point
+- `go.mod` / `go.sum` - Go module dependencies
+- `Dockerfile` / `.dockerignore` - Docker configuration
+- `.github/workflows/docker.yml` - This workflow file
 
-#### Lint Job
-- Runs on Ubuntu latest
-- Uses golangci-lint for code quality checks
-- Ensures code follows Go best practices
+### 🚀 Release (`release.yml`)
+**Triggers:** Git tags (e.g., v1.0.0)
+- **Multi-platform builds** for all supported architectures
+- **Automatic release creation** with binaries and checksums
+- **No path filtering** - runs on any tag creation
 
-#### Build Job
-- Runs after test and lint jobs pass
-- Builds for multiple platforms:
-  - Linux (amd64, arm64)
-  - Windows (amd64)
-  - macOS (amd64)
-- Uploads build artifacts
+### 📚 Documentation Check (`docs.yml`)
+**Triggers:** Documentation files only
+- **Markdown validation** for README and docs
+- **Environment file checks** for completeness
+- **PR comments** when documentation changes are detected
 
-### 2. Release Workflow (`.github/workflows/release.yml`)
+**Files that trigger this workflow:**
+- `README.md` - Main documentation
+- `.env.example` - Environment variables example
+- `DOCKER.md` - Docker documentation
+- `docs/**` - Additional documentation
+- `*.md` - Any markdown files
 
-**Triggers:**
-- Push of version tags (e.g., `v1.0.0`)
+### ⚙️ Workflow Check (`workflow-check.yml`)
+**Triggers:** Workflow files only
+- **YAML validation** for all workflow files
+- **Trigger configuration checks** for path filtering
+- **Workflow structure validation**
 
-**Features:**
-- Automatically creates GitHub releases
-- Builds binaries for all supported platforms
-- Generates checksums for verification
-- Includes release notes
+**Files that trigger this workflow:**
+- `.github/workflows/*.yml` - All workflow files
+- `.github/workflows/*.yaml` - All workflow files
 
-## Usage
+## Path Filtering Benefits
 
-### Running Tests Locally
+### ✅ What triggers workflows:
+- **Code changes** in `internal/` directory
+- **Dependency changes** in `go.mod`/`go.sum`
+- **Docker changes** in `Dockerfile`/`.dockerignore`
+- **Workflow changes** in `.github/workflows/`
+- **Documentation changes** in markdown files
+- **Release tags** (v*)
 
-```bash
-# Run all tests
-make test
+### ❌ What doesn't trigger workflows:
+- **Documentation-only changes** (README, .md files) - only docs workflow runs
+- **Workflow-only changes** - only workflow-check runs
+- **Changes to non-core files** (assets, examples, etc.)
+- **Changes to ignored files** (.gitignore patterns)
 
-# Run tests with coverage
-make test-coverage
+## Workflow Dependencies
 
-# Run specific test
-go test -v ./internal/ui
+```mermaid
+graph TD
+    A[Code Change] --> B{File Type?}
+    B -->|internal/**, main.go, go.mod| C[CI/CD Pipeline]
+    B -->|Docker files| D[Docker Build]
+    B -->|Documentation| E[Documentation Check]
+    B -->|Workflow files| F[Workflow Check]
+    B -->|Git tag| G[Release]
+    
+    C --> H[Unit Tests]
+    C --> I[Integration Tests]
+    C --> J[Linting]
+    
+    D --> K[Multi-arch Build]
+    D --> L[Container Registry Push]
+    
+    G --> M[Multi-platform Build]
+    G --> N[Release Creation]
 ```
 
-### Building Locally
+## Optimization Features
 
-```bash
-# Build for current platform
-make build
+1. **Path-based triggers** - Only run when relevant files change
+2. **Conditional jobs** - Integration tests only on main/develop
+3. **Build caching** - Docker and Go module caching
+4. **Parallel execution** - Jobs run in parallel when possible
+5. **Resource efficiency** - Minimal runner usage
 
-# Build for all platforms
-make build-all
+## Manual Workflow Triggers
 
-# Build with specific version
-VERSION=v1.0.0 make build
-```
-
-### Creating a Release
-
-1. Create and push a version tag:
-   ```bash
-   git tag v1.0.0
-   git push origin v1.0.0
-   ```
-
-2. GitHub Actions will automatically:
-   - Run tests
-   - Build binaries for all platforms
-   - Create a GitHub release
-   - Upload all artifacts
-
-### Development Tools
-
-```bash
-# Install development tools
-make install-tools
-
-# Format code
-make fmt
-
-# Run linter
-make lint
-
-# Clean build artifacts
-make clean
-```
-
-## Environment Variables
-
-The workflows use the following environment variables:
-
-- `GO_VERSION`: Go version to use (default: 1.24)
-- `GITHUB_TOKEN`: Automatically provided by GitHub Actions
-
-## Artifacts
-
-### Build Artifacts
-- `faceit-cli-linux-amd64`
-- `faceit-cli-linux-arm64`
-- `faceit-cli-windows-amd64.exe`
-- `faceit-cli-darwin-amd64`
-- `faceit-cli-darwin-arm64`
-
-### Release Assets
-- All platform binaries
-- `checksums.txt` with SHA256 checksums
-- Source code archive
-
-## Coverage
-
-Code coverage is automatically generated and uploaded to Codecov. You can view coverage reports at:
-- Codecov dashboard
-- Local HTML report: `coverage.html`
+You can manually trigger workflows from the GitHub Actions tab:
+1. Go to **Actions** tab in your repository
+2. Select the workflow you want to run
+3. Click **Run workflow**
+4. Choose the branch and click **Run workflow**
 
 ## Troubleshooting
 
-### Common Issues
+### Workflow not running?
+- Check if the changed files match the `paths` filter
+- Verify the branch is in the `branches` list
+- Check workflow syntax in the Actions tab
 
-1. **Tests failing**: Check that all dependencies are properly imported
-2. **Build failing**: Ensure Go version compatibility
-3. **Release failing**: Verify tag format (must start with 'v')
+### Build failures?
+- Check the **Actions** tab for detailed logs
+- Verify all required secrets are set
+- Check if dependencies are up to date
 
-### Local Development
-
-```bash
-# Install dependencies
-make deps
-
-# Run the application
-make run
-
-# Check version
-./faceit-cli --version
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests: `make test`
-5. Run linter: `make lint`
-6. Submit a pull request
-
-The CI/CD pipeline will automatically test your changes before they can be merged.
+### Performance issues?
+- Workflows are optimized with path filtering
+- Build caching reduces build times
+- Parallel execution improves speed

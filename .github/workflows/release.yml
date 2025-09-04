@@ -1,5 +1,7 @@
 name: Release
 
+# Release workflow runs only on tag creation (e.g., v1.0.0)
+# No path filtering needed as it's triggered by tags, not file changes
 on:
   push:
     tags:
