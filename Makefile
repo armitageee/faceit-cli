@@ -37,6 +37,12 @@ test:
 	@echo "Running unit tests..."
 	go test -v -race -short ./...
 
+# Run unit tests only (excluding repository integration tests)
+.PHONY: test-unit
+test-unit:
+	@echo "Running unit tests (excluding repository)..."
+	go test -v -race -short ./internal/cache/ ./internal/config/ ./internal/entity/ ./internal/logger/ ./internal/ui/
+
 # Run integration tests (requires FACEIT_API_KEY)
 .PHONY: test-integration
 test-integration:
@@ -52,6 +58,7 @@ test-integration:
 .PHONY: test-all
 test-all: test test-integration
 
+
 # Run tests with coverage
 .PHONY: test-coverage
 test-coverage:
@@ -59,6 +66,17 @@ test-coverage:
 	go test -v -race -coverprofile=coverage.out -short ./...
 	go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
+
+# Docker commands
+.PHONY: docker-build
+docker-build:
+	@echo "Building Docker image..."
+	docker build -t faceit-cli:latest .
+
+.PHONY: docker-run
+docker-run:
+	@echo "Running faceit-cli in Docker..."
+	docker run --rm -it --env-file .env faceit-cli:latest
 
 # Run benchmarks
 .PHONY: benchmark
@@ -185,6 +203,7 @@ help:
 	@echo "  build         - Build the binary"
 	@echo "  build-all     - Build for multiple platforms"
 	@echo "  test          - Run unit tests (fast, no external dependencies)"
+	@echo "  test-unit     - Run unit tests (excluding repository)"
 	@echo "  test-integration - Run integration tests (requires FACEIT_API_KEY)"
 	@echo "  test-all      - Run all tests (unit + integration)"
 	@echo "  test-coverage - Run tests with coverage report"
@@ -194,6 +213,8 @@ help:
 	@echo "  clean         - Clean build artifacts"
 	@echo "  deps          - Install dependencies"
 	@echo "  install-tools - Install development tools"
+	@echo "  docker-build  - Build Docker image"
+	@echo "  docker-run    - Run in Docker with .env file"
 	@echo "  run           - Build and run the application"
 	@echo "  run-kafka     - Run with Kafka logging enabled"
 	@echo "  run-production - Run in production mode (no stdout logs)"

@@ -20,11 +20,27 @@ A beautiful terminal user interface (TUI) for viewing FACEIT player profiles and
 
 ## Quick Start
 
-### Using Pre-built Binaries
+### Option 1: Pre-built Binaries
 
 Download the latest release from the [Releases page](https://github.com/armitageee/faceit-cli/releases) and extract the binary for your platform.
 
-### Building from Source
+### Option 2: Docker
+
+```bash
+# Clone the repository
+git clone https://github.com/armitageee/faceit-cli.git
+cd faceit-cli
+
+# Set up environment
+cp .env.example .env
+# Edit .env and add your FACEIT_API_KEY
+
+# Build and run with Docker
+make docker-build
+make docker-run
+```
+
+### Option 3: Building from Source
 
 ```bash
 # Clone the repository
@@ -215,6 +231,30 @@ make build-all     # Build for all platforms
 4. Run tests: `make test`
 5. Run linter: `make lint`
 6. Submit a pull request
+
+## Docker Support
+
+The application includes full Docker support with multi-stage builds and automatic image publishing.
+
+### Docker Commands
+
+```bash
+# Build Docker image
+make docker-build
+
+# Run in Docker
+make docker-run
+```
+
+### Docker Features
+
+- **Multi-stage builds** for optimized image size (~20MB)
+- **Distroless base image** for security
+- **Multi-architecture support** (amd64, arm64)
+- **Automatic publishing** to GitHub Container Registry
+- **Environment file support** for easy configuration
+
+For detailed Docker documentation, see [DOCKER.md](DOCKER.md).
 
 ## License
 
