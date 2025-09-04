@@ -61,7 +61,7 @@ jobs:
       env:
         FACEIT_API_KEY: ${{ secrets.FACEIT_API_KEY }}
       run: |
-        go test -v -race ./...
+        go test -v -race ./internal/repository/...
   lint:
     name: Lint
     runs-on: ubuntu-latest
