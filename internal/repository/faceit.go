@@ -152,29 +152,58 @@ func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID 
 
 	ctx = r.contextWithAPIKey(ctx)
 
-	// Prepare optional parameters for the history call.  The
-	// PlayersApiGetPlayerHistoryOpts type supports specifying a
-	// maximum number of records to return via the Limit field.
-	opts := &faceit.PlayersApiGetPlayerHistoryOpts{}
-	opts.Limit = optional.NewInt32(int32(limit))
+	var allMatches []entity.PlayerMatchSummary
+	offset := 0
+	maxPerRequest := 100 // Faceit API maximum per request
 
-	history, _, err := r.client.PlayersApi.GetPlayerHistory(ctx, playerID, gameID, opts)
-	if err != nil {
-		return nil, fmt.Errorf("get player history: %w", err)
+	for len(allMatches) < limit {
+		// Calculate how many matches to request in this batch
+		remaining := limit - len(allMatches)
+		batchSize := maxPerRequest
+		if remaining < maxPerRequest {
+			batchSize = remaining
+		}
+
+		// Prepare optional parameters for the history call
+		opts := &faceit.PlayersApiGetPlayerHistoryOpts{}
+		opts.Limit = optional.NewInt32(int32(batchSize))
+		opts.Offset = optional.NewInt32(int32(offset))
+
+		history, _, err := r.client.PlayersApi.GetPlayerHistory(ctx, playerID, gameID, opts)
+		if err != nil {
+			return nil, fmt.Errorf("get player history: %w", err)
+		}
+
+		// If no more matches, break
+		if len(history.Items) == 0 {
+			break
+		}
+
+		// If we got fewer matches than requested, we've reached the end
+		if len(history.Items) < batchSize {
+			// Process this final batch and break
+			allMatches = append(allMatches, r.processMatches(history.Items, playerID)...)
+			break
+		}
+
+		// Process this batch
+		allMatches = append(allMatches, r.processMatches(history.Items, playerID)...)
+
+		// Move to next batch
+		offset += len(history.Items)
 	}
-	// MatchHistoryList is a struct, not a pointer, so it cannot be compared to nil.
-	// When the history has no items, simply return an empty slice.
-	if len(history.Items) == 0 {
-		return nil, nil
-	}
-	
+
 	// Debug logging (can be removed in production)
-	// fmt.Printf("DEBUG: Requested limit: %d, Got matches: %d\n", limit, len(history.Items))
-	results := make([]entity.PlayerMatchSummary, 0, len(history.Items))
+	// fmt.Printf("DEBUG: Requested limit: %d, Got matches: %d\n", limit, len(allMatches))
+	return allMatches, nil
+}
 
+// processMatches processes a batch of matches and returns PlayerMatchSummary slice
+func (r *faceitRepository) processMatches(items []faceit.MatchHistory, playerID string) []entity.PlayerMatchSummary {
+	results := make([]entity.PlayerMatchSummary, 0, len(items))
 	// Iterate through the returned matches.  The API lists matches
 	// from newest to oldest so we preserve the order provided.
-	for _, item := range history.Items {
+	for _, item := range items {
 
 		// Identify the team the player belonged to by scanning the
 		// Teams map for the player's ID.
@@ -394,5 +423,5 @@ func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID 
 		results = append(results, summary)
 	}
 
-	return results, nil
+	return results
 }
