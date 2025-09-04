@@ -18,6 +18,9 @@ const (
 	StateMatches
 	StateStats
 	StateMatchDetail
+	StateMatchSearch
+	StateMatchStats
+	StatePlayerMatchDetail // New state for detailed match view from profile
 	StatePlayerSwitch
 	StateComparisonInput
 	StateComparison
@@ -94,6 +97,7 @@ type PerformanceMetrics struct {
 	SupportScore     float64
 }
 
+
 // PlayerComparison represents comparison data between two players
 type PlayerComparison struct {
 	Player1Nickname string
@@ -135,6 +139,12 @@ type AppModel struct {
 	recentPlayers      []string
 	comparison         *PlayerComparison
 	comparisonInput    string
+	// Match search fields
+	matchSearchInput   string
+	matchStats         *entity.MatchStats
+	// Player match detail fields
+	selectedPlayerMatch *entity.PlayerMatchSummary
+	playerMatchStats    *entity.MatchStats
 	error              string
 	loading            bool
 	width              int
@@ -172,6 +182,14 @@ type matchesPageLoadedMsg struct {
 
 type backgroundMatchesLoadedMsg struct {
 	matches []entity.PlayerMatchSummary
+}
+
+type matchStatsLoadedMsg struct {
+	matchStats *entity.MatchStats
+}
+
+type playerMatchStatsLoadedMsg struct {
+	matchStats *entity.MatchStats
 }
 
 // Styling constants

@@ -132,16 +132,18 @@ func TestGenerateKeys(t *testing.T) {
 
 // Mock repository for testing
 type mockRepository struct {
-	profiles map[string]*entity.PlayerProfile
-	stats    map[string]*entity.PlayerStats
-	matches  map[string][]entity.PlayerMatchSummary
+	profiles   map[string]*entity.PlayerProfile
+	stats      map[string]*entity.PlayerStats
+	matches    map[string][]entity.PlayerMatchSummary
+	matchStats map[string]*entity.MatchStats
 }
 
 func newMockRepository() *mockRepository {
 	return &mockRepository{
-		profiles: make(map[string]*entity.PlayerProfile),
-		stats:    make(map[string]*entity.PlayerStats),
-		matches:  make(map[string][]entity.PlayerMatchSummary),
+		profiles:   make(map[string]*entity.PlayerProfile),
+		stats:      make(map[string]*entity.PlayerStats),
+		matches:    make(map[string][]entity.PlayerMatchSummary),
+		matchStats: make(map[string]*entity.MatchStats),
 	}
 }
 
@@ -166,6 +168,13 @@ func (m *mockRepository) GetPlayerRecentMatches(ctx context.Context, playerID st
 		return matches, nil
 	}
 	return nil, fmt.Errorf("matches not found")
+}
+
+func (m *mockRepository) GetMatchStats(ctx context.Context, matchID string) (*entity.MatchStats, error) {
+	if stats, exists := m.matchStats[matchID]; exists {
+		return stats, nil
+	}
+	return nil, fmt.Errorf("match stats not found")
 }
 
 func TestCachedRepository(t *testing.T) {
@@ -197,5 +206,50 @@ func TestCachedRepository(t *testing.T) {
 	_, found := cachedRepo.cache.Get(key)
 	if !found {
 		t.Error("Expected profile to be cached")
+	}
+}
+
+func TestCachedMatchStats(t *testing.T) {
+	mockRepo := newMockRepository()
+	cachedRepo := NewCachedFaceitRepository(mockRepo, 1*time.Minute)
+	
+	// Test match stats caching
+	matchStats := &entity.MatchStats{
+		MatchID: "test-match-123",
+		Map:     "de_dust2",
+		Score:   "16-14",
+		Result:  "finished",
+		Team1: entity.TeamMatchStats{
+			TeamID:   "team1",
+			TeamName: "Team 1",
+			Score:    16,
+			Players:  []entity.PlayerMatchStats{},
+		},
+		Team2: entity.TeamMatchStats{
+			TeamID:   "team2",
+			TeamName: "Team 2",
+			Score:    14,
+			Players:  []entity.PlayerMatchStats{},
+		},
+		PlayerStats: []entity.PlayerMatchStats{},
+	}
+	mockRepo.matchStats["test-match-123"] = matchStats
+	
+	ctx := context.Background()
+	
+	// First call should hit the repository
+	result, err := cachedRepo.GetMatchStats(ctx, "test-match-123")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if result.MatchID != "test-match-123" {
+		t.Errorf("Expected test-match-123, got %s", result.MatchID)
+	}
+	
+	// Verify the cache has the item
+	key := GenerateMatchStatsKey("test-match-123")
+	_, found := cachedRepo.cache.Get(key)
+	if !found {
+		t.Error("Expected match stats to be cached")
 	}
 }

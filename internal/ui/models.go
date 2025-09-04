@@ -81,6 +81,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateStats(msg)
 		case StateMatchDetail:
 			return m.updateMatchDetail(msg)
+		case StateMatchSearch:
+			return m.updateMatchSearch(msg)
+		case StateMatchStats:
+			return m.updateMatchStats(msg)
+		case StatePlayerMatchDetail:
+			return m.updatePlayerMatchDetail(msg)
 		case StatePlayerSwitch:
 			return m.updatePlayerSwitch(msg)
 		case StateComparisonInput:
@@ -90,6 +96,8 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case StateError:
 			return m.updateError(msg)
 		}
+
+
 
 	case profileLoadedMsg:
 		m.loading = false
@@ -136,6 +144,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			totalPages := (len(m.matches) + m.matchesPerPage - 1) / m.matchesPerPage
 			m.hasMoreMatches = m.currentPage < totalPages
 		}
+		return m, nil
+
+	case matchStatsLoadedMsg:
+		m.loading = false
+		m.matchStats = msg.matchStats
+		m.state = StateMatchStats
+		return m, nil
+
+	case playerMatchStatsLoadedMsg:
+		m.loading = false
+		m.playerMatchStats = msg.matchStats
+		m.state = StatePlayerMatchDetail
 		return m, nil
 
 	case statsLoadedMsg:
@@ -188,6 +208,12 @@ func (m AppModel) View() string {
 		return m.viewStats()
 	case StateMatchDetail:
 		return m.viewMatchDetail()
+	case StateMatchSearch:
+		return m.viewMatchSearch()
+	case StateMatchStats:
+		return m.viewMatchStats()
+	case StatePlayerMatchDetail:
+		return m.viewPlayerMatchDetail()
 	case StatePlayerSwitch:
 		return m.viewPlayerSwitch()
 	case StateComparisonInput:

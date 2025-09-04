@@ -127,6 +127,7 @@ type FaceitRepository interface {
 	GetPlayerByNickname(ctx context.Context, nickname string) (*entity.PlayerProfile, error)
 	GetPlayerStats(ctx context.Context, playerID, gameID string) (*entity.PlayerStats, error)
 	GetPlayerRecentMatches(ctx context.Context, playerID string, gameID string, limit int) ([]entity.PlayerMatchSummary, error)
+	GetMatchStats(ctx context.Context, matchID string) (*entity.MatchStats, error)
 }
 
 // NewCachedFaceitRepository creates a new cached repository
@@ -220,4 +221,27 @@ func (c *CachedFaceitRepository) GetCacheStats() map[string]interface{} {
 		"total_items": len(c.cache.items),
 		"ttl":         c.cache.ttl.String(),
 	}
+}
+
+// GetMatchStats implements FaceitRepository interface with caching
+func (c *CachedFaceitRepository) GetMatchStats(ctx context.Context, matchID string) (*entity.MatchStats, error) {
+	key := GenerateMatchStatsKey(matchID)
+	
+	// Try to get from cache
+	if cached, found := c.cache.Get(key); found {
+		if stats, ok := cached.(*entity.MatchStats); ok {
+			return stats, nil
+		}
+	}
+	
+	// Get from repository
+	stats, err := c.repo.GetMatchStats(ctx, matchID)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Cache the result
+	c.cache.Set(key, stats)
+	
+	return stats, nil
 }

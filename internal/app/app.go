@@ -46,7 +46,7 @@ func (a *App) Run(ctx context.Context) error {
 	model := ui.InitialModel(a.repo, a.config, a.logger)
 	
 	a.logger.Info("Starting TUI program")
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	
 	if _, err := p.Run(); err != nil {
 		a.logger.Error("TUI program failed", map[string]interface{}{
