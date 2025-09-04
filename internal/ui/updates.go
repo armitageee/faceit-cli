@@ -577,12 +577,33 @@ func (m AppModel) updatePlayerMatchDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // loadPlayerMatchStats loads detailed match statistics for a player's match
 func (m AppModel) loadPlayerMatchStats() tea.Cmd {
 	return func() tea.Msg {
+		if m.logger != nil {
+			m.logger.Debug("Loading player match stats", map[string]interface{}{
+				"match_id": m.selectedPlayerMatch.MatchID,
+				"map":      m.selectedPlayerMatch.Map,
+			})
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		stats, err := m.repo.GetMatchStats(ctx, m.selectedPlayerMatch.MatchID)
 		if err != nil {
+			if m.logger != nil {
+				m.logger.Error("Failed to load player match stats", map[string]interface{}{
+					"match_id": m.selectedPlayerMatch.MatchID,
+					"error":    err.Error(),
+				})
+			}
 			return errorMsg{err: fmt.Sprintf("Failed to load match stats: %v", err)}
+		}
+
+		if m.logger != nil {
+			m.logger.Debug("Player match stats loaded successfully", map[string]interface{}{
+				"match_id": m.selectedPlayerMatch.MatchID,
+				"map":      stats.Map,
+				"score":    stats.Score,
+			})
 		}
 
 		return playerMatchStatsLoadedMsg{matchStats: stats}
