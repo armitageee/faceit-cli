@@ -17,6 +17,14 @@ func (m AppModel) updateSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
+	case "1":
+		// Search player by nickname
+		m.state = StatePlayerSwitch
+		return m, nil
+	case "2":
+		// Search match by ID
+		m.state = StateMatchSearch
+		return m, nil
 	case "enter":
 		if strings.TrimSpace(m.searchInput) != "" {
 			m.loading = true
@@ -95,6 +103,12 @@ func (m AppModel) updatePlayerSwitch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.playerSwitchInput = m.playerSwitchInput[:len(m.playerSwitchInput)-1]
 		}
 		return m, nil
+	case "ctrl+v", "cmd+v":
+		// Handle paste from clipboard
+		if content, err := GetClipboardContent(); err == nil && content != "" {
+			m.playerSwitchInput += content
+		}
+		return m, nil
 	default:
 		if len(msg.String()) == 1 {
 			m.playerSwitchInput += msg.String()
@@ -140,12 +154,20 @@ func (m AppModel) updateMatches(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.selectedMatchIndex = (m.currentPage - 1) * m.matchesPerPage
 		}
 		return m, nil
-	case "enter", "d":
+	case "enter":
 		// Load detailed view of the selected match
 		if len(m.matches) > 0 && m.selectedMatchIndex < len(m.matches) {
 			m.loading = true
 			m.state = StateLoading
 			return m, m.loadMatchDetail(m.matches[m.selectedMatchIndex].MatchID)
+		}
+	case "d", "D":
+		// Load detailed match statistics
+		if len(m.matches) > 0 && m.selectedMatchIndex < len(m.matches) {
+			m.selectedPlayerMatch = &m.matches[m.selectedMatchIndex]
+			m.loading = true
+			m.state = StateLoading
+			return m, m.loadPlayerMatchStats()
 		}
 	}
 	return m, nil
@@ -384,6 +406,12 @@ func (m AppModel) updateComparisonInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(m.comparisonInput) > 0 {
 			m.comparisonInput = m.comparisonInput[:len(m.comparisonInput)-1]
 		}
+	case "ctrl+v", "cmd+v":
+		// Handle paste from clipboard
+		if content, err := GetClipboardContent(); err == nil && content != "" {
+			m.comparisonInput += content
+		}
+		return m, nil
 	default:
 		if len(msg.String()) == 1 {
 			m.comparisonInput += msg.String()
@@ -474,5 +502,89 @@ func (m AppModel) loadLifetimeStats() tea.Cmd {
 
 
 		return lifetimeStatsLoadedMsg{stats: stats}
+	}
+}
+
+// updateMatchSearch handles input for match search
+func (m AppModel) updateMatchSearch(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q", "Q":
+		return m, tea.Quit
+	case "enter":
+		if m.matchSearchInput != "" {
+			return m, m.loadMatchStats()
+		}
+	case "backspace":
+		if len(m.matchSearchInput) > 0 {
+			m.matchSearchInput = m.matchSearchInput[:len(m.matchSearchInput)-1]
+		}
+	case "ctrl+v", "cmd+v", "ctrl+V", "cmd+V", "f2", "F2", "p", "P":
+		// Handle paste from clipboard
+		if content, err := GetClipboardContent(); err == nil && content != "" {
+			m.matchSearchInput += content
+		}
+		return m, nil
+	default:
+		// Handle regular character input
+		if len(msg.String()) == 1 {
+			m.matchSearchInput += msg.String()
+		}
+	}
+	return m, nil
+}
+
+// updateMatchStats handles input for match statistics view
+func (m AppModel) updateMatchStats(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q", "Q":
+		m.state = StateSearch
+		m.matchSearchInput = ""
+		m.matchStats = nil
+	}
+	return m, nil
+}
+
+// loadMatchStats loads match statistics
+func (m AppModel) loadMatchStats() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		stats, err := m.repo.GetMatchStats(ctx, m.matchSearchInput)
+		if err != nil {
+			return errorMsg{err: fmt.Sprintf("Failed to load match stats: %v", err)}
+		}
+
+		return matchStatsLoadedMsg{matchStats: stats}
+	}
+}
+
+// updatePlayerMatchDetail handles input for player match detail view
+func (m AppModel) updatePlayerMatchDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q", "Q":
+		return m, tea.Quit
+	case "esc", "backspace":
+		// Return to matches view
+		m.state = StateMatches
+		return m, nil
+	default:
+		// No other keys needed for this view
+	}
+	return m, nil
+}
+
+// loadPlayerMatchStats loads detailed match statistics for a player's match
+func (m AppModel) loadPlayerMatchStats() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		stats, err := m.repo.GetMatchStats(ctx, m.selectedPlayerMatch.MatchID)
+		if err != nil {
+			return errorMsg{err: fmt.Sprintf("Failed to load match stats: %v", err)}
+		}
+
+		return playerMatchStatsLoadedMsg{matchStats: stats}
 	}
 }

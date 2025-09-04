@@ -20,6 +20,7 @@ type FaceitRepository interface {
 	GetPlayerByNickname(ctx context.Context, nickname string) (*entity.PlayerProfile, error)
 	GetPlayerStats(ctx context.Context, playerID, gameID string) (*entity.PlayerStats, error)
 	GetPlayerRecentMatches(ctx context.Context, playerID string, gameID string, limit int) ([]entity.PlayerMatchSummary, error)
+	GetMatchStats(ctx context.Context, matchID string) (*entity.MatchStats, error)
 }
 
 // faceitRepository is a concrete implementation of FaceitRepository that
@@ -424,4 +425,263 @@ func (r *faceitRepository) processMatches(items []faceit.MatchHistory, playerID 
 	}
 
 	return results
+}
+
+// GetMatchStats retrieves detailed match statistics by match ID
+func (r *faceitRepository) GetMatchStats(ctx context.Context, matchID string) (*entity.MatchStats, error) {
+	if matchID == "" {
+		return nil, fmt.Errorf("matchID must not be empty")
+	}
+
+	ctx = r.contextWithAPIKey(ctx)
+	
+	// Try to get match details first
+	match, _, err := r.client.MatchesApi.GetMatch(ctx, matchID)
+	if err != nil {
+		// If match not found, return a helpful error
+		return nil, fmt.Errorf("match not found: %s. Please check the Match ID and try again", matchID)
+	}
+
+	// Get match statistics
+	stats, _, err := r.client.MatchesApi.GetMatchStats(ctx, matchID)
+	if err != nil {
+		// If stats not available, return basic match info
+		return &entity.MatchStats{
+			MatchID:    matchID,
+			Map:        "Unknown",
+			FinishedAt: match.FinishedAt,
+			Score:      "N/A",
+			Result:     match.Status,
+			Team1: entity.TeamMatchStats{
+				TeamID:   "team1",
+				TeamName: "Team 1",
+				Score:    0,
+				Players:  []entity.PlayerMatchStats{},
+			},
+			Team2: entity.TeamMatchStats{
+				TeamID:   "team2", 
+				TeamName: "Team 2",
+				Score:    0,
+				Players:  []entity.PlayerMatchStats{},
+			},
+			PlayerStats: []entity.PlayerMatchStats{},
+		}, nil
+	}
+
+	// Extract map name from RoundStats
+	mapName := "Unknown"
+	scoreStr := "0-0"
+	
+	if len(stats.Rounds) > 0 {
+		roundStats := stats.Rounds[0].RoundStats
+		if roundStats != nil {
+			if mapVal, ok := roundStats["Map"]; ok {
+				if mapStr, ok := mapVal.(string); ok {
+					mapName = mapStr
+				}
+			}
+			if scoreVal, ok := roundStats["Score"]; ok {
+				if scoreStrVal, ok := scoreVal.(string); ok {
+					// Convert "6 / 13" format to "6-13"
+					scoreStr = strings.ReplaceAll(scoreStrVal, " / ", "-")
+				}
+			}
+		}
+	}
+
+	// Initialize match stats with basic info
+	matchStats := &entity.MatchStats{
+		MatchID:    matchID,
+		Map:        mapName,
+		FinishedAt: match.FinishedAt,
+		Score:      scoreStr,
+		Result:     match.Status,
+		Team1: entity.TeamMatchStats{
+			TeamID:   "team1",
+			TeamName: "Team 1",
+			Score:    0,
+			Players:  []entity.PlayerMatchStats{},
+		},
+		Team2: entity.TeamMatchStats{
+			TeamID:   "team2",
+			TeamName: "Team 2", 
+			Score:    0,
+			Players:  []entity.PlayerMatchStats{},
+		},
+		PlayerStats: []entity.PlayerMatchStats{},
+	}
+
+	// Process teams and players with real data
+	if len(stats.Rounds) > 0 && len(stats.Rounds[0].Teams) >= 2 {
+		round := stats.Rounds[0]
+		
+		for i, team := range round.Teams {
+			if i >= 2 {
+				break // Only process first 2 teams
+			}
+			
+			teamID := fmt.Sprintf("team%d", i+1)
+			teamName := fmt.Sprintf("Team %d", i+1)
+			teamScore := 0
+			
+			// Try to get team name and score from TeamStats
+			if team.TeamStats != nil {
+				if nameVal, ok := team.TeamStats["Team"]; ok {
+					if nameStr, ok := nameVal.(string); ok {
+						teamName = nameStr
+					}
+				}
+				if scoreVal, ok := team.TeamStats["Final Score"]; ok {
+					switch v := scoreVal.(type) {
+					case float64:
+						teamScore = int(v)
+					case int:
+						teamScore = v
+					case string:
+						if parsed, err := strconv.Atoi(v); err == nil {
+							teamScore = parsed
+						}
+					}
+				}
+			}
+			
+			teamStats := entity.TeamMatchStats{
+				TeamID:   teamID,
+				TeamName: teamName,
+				Score:    teamScore,
+				Players:  []entity.PlayerMatchStats{},
+			}
+
+			// Process players in team
+			for _, player := range team.Players {
+				playerID := "unknown"
+				nickname := "Unknown Player"
+				
+				// Extract player info
+				if pid, ok := player.PlayerId.(string); ok {
+					playerID = pid
+				}
+				if nick, ok := player.Nickname.(string); ok {
+					nickname = nick
+				}
+
+				// Extract stats from PlayerStats
+				kills := 0
+				deaths := 0
+				assists := 0
+				hsPerc := 0.0
+				adr := 0.0
+				
+				if player.PlayerStats != nil {
+					// Extract stats with proper type handling
+					if k, ok := player.PlayerStats["Kills"]; ok {
+						switch v := k.(type) {
+						case float64:
+							kills = int(v)
+						case int:
+							kills = v
+						case string:
+							if parsed, err := strconv.Atoi(v); err == nil {
+								kills = parsed
+							}
+						}
+					}
+					if d, ok := player.PlayerStats["Deaths"]; ok {
+						switch v := d.(type) {
+						case float64:
+							deaths = int(v)
+						case int:
+							deaths = v
+						case string:
+							if parsed, err := strconv.Atoi(v); err == nil {
+								deaths = parsed
+							}
+						}
+					}
+					if a, ok := player.PlayerStats["Assists"]; ok {
+						switch v := a.(type) {
+						case float64:
+							assists = int(v)
+						case int:
+							assists = v
+						case string:
+							if parsed, err := strconv.Atoi(v); err == nil {
+								assists = parsed
+							}
+						}
+					}
+					if h, ok := player.PlayerStats["Headshots %"]; ok {
+						switch v := h.(type) {
+						case float64:
+							hsPerc = v
+						case int:
+							hsPerc = float64(v)
+						case string:
+							if parsed, err := strconv.ParseFloat(v, 64); err == nil {
+								hsPerc = parsed
+							}
+						}
+					}
+					if r, ok := player.PlayerStats["ADR"]; ok {
+						switch v := r.(type) {
+						case float64:
+							adr = v
+						case int:
+							adr = float64(v)
+						case string:
+							if parsed, err := strconv.ParseFloat(v, 64); err == nil {
+								adr = parsed
+							}
+						}
+					}
+				}
+
+				// Calculate K/D ratio
+				kdRatio := 0.0
+				if deaths > 0 {
+					kdRatio = float64(kills) / float64(deaths)
+				} else if kills > 0 {
+					kdRatio = float64(kills)
+				}
+
+				playerStats := entity.PlayerMatchStats{
+					PlayerID:            playerID,
+					Nickname:            nickname,
+					Team:                teamName,
+					Kills:               kills,
+					Deaths:              deaths,
+					Assists:             assists,
+					KDRatio:             kdRatio,
+					HeadshotsPercentage: hsPerc,
+					ADR:                 adr,
+					HLTVRating:          0.0, // Not available in basic stats
+					FirstKills:          0,   // Not available in basic stats
+					FirstDeaths:         0,   // Not available in basic stats
+					ClutchWins:          0,   // Not available in basic stats
+					EntryFrags:          0,   // Not available in basic stats
+					FlashAssists:        0,   // Not available in basic stats
+					UtilityDamage:       0,   // Not available in basic stats
+				}
+
+				teamStats.Players = append(teamStats.Players, playerStats)
+				matchStats.PlayerStats = append(matchStats.PlayerStats, playerStats)
+			}
+
+			if i == 0 {
+				matchStats.Team1 = teamStats
+			} else {
+				matchStats.Team2 = teamStats
+			}
+		}
+	}
+
+	return matchStats, nil
+}
+
+// max returns the maximum of two integers
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

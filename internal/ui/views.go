@@ -12,11 +12,89 @@ import (
 func (m AppModel) viewSearch() string {
 	asciiTitle := generateASCIILogo()
 	title := titleStyle.Render("🎮 FACEIT CLI")
-	search := searchStyle.Render(fmt.Sprintf("Enter player nickname:\n\n%s", m.searchInput))
-	help := helpStyle.Render("Press Enter to search • Ctrl+C or Q to quit")
+	
+	var content strings.Builder
+	content.WriteString("Choose search option:\n\n")
+	content.WriteString("1. Search player by nickname\n")
+	content.WriteString("2. Search match by ID\n\n")
+	content.WriteString(fmt.Sprintf("Selected: %s", m.searchInput))
+	
+	search := searchStyle.Render(content.String())
+	help := helpStyle.Render("Press 1 or 2 to select • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, search, help))
+}
+
+// viewMatchSearch renders the match search screen
+func (m AppModel) viewMatchSearch() string {
+	asciiTitle := generateASCIILogo()
+	title := titleStyle.Render("🔍 Search Match")
+	search := searchStyle.Render(fmt.Sprintf("Enter match ID:\n\n%s", m.matchSearchInput))
+	help := helpStyle.Render("Press Enter to search • P or F2 to paste from clipboard • Ctrl+C or Q to quit")
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, search, help))
+}
+
+// viewMatchStats renders the match statistics screen
+func (m AppModel) viewMatchStats() string {
+	if m.matchStats == nil {
+		return "No match data"
+	}
+
+	asciiTitle := generateASCIILogo()
+	title := titleStyle.Render("📊 Match Statistics")
+	
+	var content strings.Builder
+	
+	// Match header
+	content.WriteString(fmt.Sprintf("🎮 Match ID: %s\n", m.matchStats.MatchID))
+	content.WriteString(fmt.Sprintf("🗺️  Map: %s\n", m.matchStats.Map))
+	content.WriteString(fmt.Sprintf("📊 Final Score: %s\n", m.matchStats.Score))
+	content.WriteString(fmt.Sprintf("✅ Status: %s\n", m.matchStats.Result))
+	
+	// Determine winner
+	winner := "Draw"
+	if m.matchStats.Team1.Score > m.matchStats.Team2.Score {
+		winner = fmt.Sprintf("🏆 Winner: %s", m.matchStats.Team1.TeamName)
+	} else if m.matchStats.Team2.Score > m.matchStats.Team1.Score {
+		winner = fmt.Sprintf("🏆 Winner: %s", m.matchStats.Team2.TeamName)
+	}
+	content.WriteString(fmt.Sprintf("%s\n\n", winner))
+	
+	// Team 1 header
+	content.WriteString(fmt.Sprintf("🔵 %s (Score: %d)\n", m.matchStats.Team1.TeamName, m.matchStats.Team1.Score))
+	content.WriteString("────────────────────────────────────────────────\n")
+	content.WriteString("Player          K   D   A   K/D   HS%   ADR\n")
+	content.WriteString("────────────────────────────────────────────────\n")
+	
+	for _, player := range m.matchStats.Team1.Players {
+		content.WriteString(fmt.Sprintf("%-15s %2d  %2d  %2d  %4.2f  %4.1f  %5.1f\n", 
+			player.Nickname, player.Kills, player.Deaths, player.Assists, 
+			player.KDRatio, player.HeadshotsPercentage, player.ADR))
+	}
+	
+	content.WriteString("\n")
+	
+	// Team 2 header
+	content.WriteString(fmt.Sprintf("🔴 %s (Score: %d)\n", m.matchStats.Team2.TeamName, m.matchStats.Team2.Score))
+	content.WriteString("────────────────────────────────────────────────\n")
+	content.WriteString("Player          K   D   A   K/D   HS%   ADR\n")
+	content.WriteString("────────────────────────────────────────────────\n")
+	
+	for _, player := range m.matchStats.Team2.Players {
+		content.WriteString(fmt.Sprintf("%-15s %2d  %2d  %2d  %4.2f  %4.1f  %5.1f\n", 
+			player.Nickname, player.Kills, player.Deaths, player.Assists, 
+			player.KDRatio, player.HeadshotsPercentage, player.ADR))
+	}
+	
+	content.WriteString("\n📝 Press 'q' to go back to search")
+	
+	help := helpStyle.Render(content.String())
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, help))
 }
 
 // viewProfile renders the profile screen
@@ -126,7 +204,7 @@ func (m AppModel) viewMatches() string {
 	pagination := paginationStyle.Render(paginationInfo)
 
 	matches := matchesStyle.Render(content.String())
-	help := helpStyle.Render("↑↓/KJ - Navigate • ←→/HL - Change page • Enter/D - View details • Esc - Back to profile • Ctrl+C or Q to quit")
+	help := helpStyle.Render("↑↓/KJ - Navigate • ←→/HL - Change page • Enter - Match details • D - Match stats • Esc - Back to profile • Ctrl+C or Q to quit")
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, matches, pagination, help))
@@ -387,6 +465,64 @@ func (m AppModel) viewComparisonInput() string {
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, search, help))
+}
+
+// viewPlayerMatchDetail renders the detailed match statistics from player profile
+func (m AppModel) viewPlayerMatchDetail() string {
+	if m.playerMatchStats == nil {
+		return "No match data"
+	}
+
+	asciiTitle := generateASCIILogo()
+	title := titleStyle.Render("📊 Match Statistics")
+
+	var content strings.Builder
+	content.WriteString(fmt.Sprintf("🎮 Match ID: %s\n", m.playerMatchStats.MatchID))
+	content.WriteString(fmt.Sprintf("🗺️  Map: %s\n", m.playerMatchStats.Map))
+	content.WriteString(fmt.Sprintf("📊 Final Score: %s\n", m.playerMatchStats.Score))
+	content.WriteString(fmt.Sprintf("✅ Status: %s\n", m.playerMatchStats.Result))
+
+	// Determine winner
+	winner := "Draw"
+	if m.playerMatchStats.Team1.Score > m.playerMatchStats.Team2.Score {
+		winner = fmt.Sprintf("🏆 Winner: %s", m.playerMatchStats.Team1.TeamName)
+	} else if m.playerMatchStats.Team2.Score > m.playerMatchStats.Team1.Score {
+		winner = fmt.Sprintf("🏆 Winner: %s", m.playerMatchStats.Team2.TeamName)
+	}
+	content.WriteString(fmt.Sprintf("%s\n\n", winner))
+
+	// Team 1 header
+	content.WriteString(fmt.Sprintf("🔵 %s (Score: %d)\n", m.playerMatchStats.Team1.TeamName, m.playerMatchStats.Team1.Score))
+	content.WriteString("────────────────────────────────────────────────\n")
+	content.WriteString("Player          K   D   A   K/D   HS%   ADR\n")
+	content.WriteString("────────────────────────────────────────────────\n")
+
+	for _, player := range m.playerMatchStats.Team1.Players {
+		content.WriteString(fmt.Sprintf("%-15s %2d  %2d  %2d  %4.2f  %4.1f  %5.1f\n",
+			player.Nickname, player.Kills, player.Deaths, player.Assists,
+			player.KDRatio, player.HeadshotsPercentage, player.ADR))
+	}
+
+	content.WriteString("\n")
+
+	// Team 2 header
+	content.WriteString(fmt.Sprintf("🔴 %s (Score: %d)\n", m.playerMatchStats.Team2.TeamName, m.playerMatchStats.Team2.Score))
+	content.WriteString("────────────────────────────────────────────────\n")
+	content.WriteString("Player          K   D   A   K/D   HS%   ADR\n")
+	content.WriteString("────────────────────────────────────────────────\n")
+
+	for _, player := range m.playerMatchStats.Team2.Players {
+		content.WriteString(fmt.Sprintf("%-15s %2d  %2d  %2d  %4.2f  %4.1f  %5.1f\n",
+			player.Nickname, player.Kills, player.Deaths, player.Assists,
+			player.KDRatio, player.HeadshotsPercentage, player.ADR))
+	}
+
+	content.WriteString("\n📝 Press 'Esc' to go back to matches")
+
+	help := helpStyle.Render(content.String())
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, help))
 }
 
 // viewError renders the error screen

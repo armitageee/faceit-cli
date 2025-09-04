@@ -38,3 +38,43 @@ type PlayerMatchSummary struct {
 	// "Loss" otherwise.
 	Result string
 }
+
+// MatchStats represents detailed statistics for a match with all players
+type MatchStats struct {
+	MatchID       string
+	Map           string
+	FinishedAt    int64
+	Score         string
+	Result        string
+	Team1         TeamMatchStats
+	Team2         TeamMatchStats
+	PlayerStats   []PlayerMatchStats
+}
+
+// TeamMatchStats represents team statistics for a match
+type TeamMatchStats struct {
+	TeamID    string
+	TeamName  string
+	Score     int
+	Players   []PlayerMatchStats
+}
+
+// PlayerMatchStats represents detailed player statistics for a match
+type PlayerMatchStats struct {
+	PlayerID            string
+	Nickname            string
+	Team                string
+	Kills               int
+	Deaths              int
+	Assists             int
+	KDRatio             float64
+	HeadshotsPercentage float64
+	ADR                 float64
+	HLTVRating          float64
+	FirstKills          int
+	FirstDeaths         int
+	ClutchWins          int
+	EntryFrags          int
+	FlashAssists        int
+	UtilityDamage       int
+}
