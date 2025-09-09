@@ -279,10 +279,6 @@ var (
 		Background(lipgloss.Color("#2C3E50")).
 		Bold(true)
 
-	progressBarFillStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Background(lipgloss.Color("#4A90E2")).
-		Bold(true)
 
 	progressMessageStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#E8E8E8")).

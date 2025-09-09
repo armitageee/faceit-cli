@@ -226,6 +226,8 @@ func (m AppModel) View() string {
 		return m.viewComparisonInput()
 	case StateComparison:
 		return m.viewComparison()
+	case StateLoading:
+		return m.renderLoadingScreen()
 	case StateError:
 		return m.viewError()
 	default:
@@ -258,9 +260,6 @@ var (
 			Foreground(lipgloss.Color("#626262")).
 			Italic(true)
 
-	loadingStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#7D56F4")).
-			Bold(true)
 
 	winStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#04B575")).

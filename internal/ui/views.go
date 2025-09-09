@@ -364,11 +364,6 @@ func (m AppModel) viewMatchDetail() string {
 		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, matchDetail, help))
 }
 
-// viewLoading renders the loading screen
-func (m AppModel) viewLoading() string {
-	loading := loadingStyle.Render("⏳ Loading...")
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, loading)
-}
 
 // viewPlayerSwitch renders the player switch screen
 func (m AppModel) viewPlayerSwitch() string {

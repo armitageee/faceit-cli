@@ -240,26 +240,6 @@ func (m AppModel) loadPlayerProfile(nickname string) tea.Cmd {
 	}
 }
 
-// loadRecentMatches loads recent matches asynchronously
-func (m AppModel) loadRecentMatches() tea.Cmd {
-	return func() tea.Msg {
-		// Load a smaller batch first for quick display
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		// Load initial batch (first 20 matches for quick display)
-		initialLimit := 20
-		if initialLimit > m.config.MaxMatchesToLoad {
-			initialLimit = m.config.MaxMatchesToLoad
-		}
-		
-		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", initialLimit)
-		if err != nil {
-			return errorMsg{err: err.Error()}
-		}
-		return matchesLoadedMsg{matches: matches}
-	}
-}
 
 
 // loadBackgroundMatches loads matches in the background for better UX
@@ -666,28 +646,6 @@ func (m AppModel) loadMatchesWithProgress() tea.Cmd {
 		
 		// Return initial matches
 		return matchesLoadedMsg{matches: matches}
-	}
-}
-
-// loadMoreMatchesWithProgress loads more matches with progress updates
-func (m AppModel) loadMoreMatchesWithProgress() tea.Cmd {
-	return func() tea.Msg {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		// Calculate how many more matches to load
-		remaining := m.config.MaxMatchesToLoad - len(m.matches)
-		if remaining <= 0 {
-			return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
-		}
-
-		// Load remaining matches
-		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", remaining)
-		if err != nil {
-			return errorMsg{err: err.Error()}
-		}
-		
-		return backgroundMatchesLoadedMsg{matches: matches}
 	}
 }
 
