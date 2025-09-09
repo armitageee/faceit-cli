@@ -1,0 +1,14 @@
+# Build settings
+build --compilation_mode=opt
+
+# Test settings
+test --test_output=errors
+test --test_summary=short
+
+# Verbose output for debugging
+build --verbose_failures
+test --verbose_failures
+
+# Go settings
+build --action_env=GOPROXY=direct
+build --action_env=GOSUMDB=off

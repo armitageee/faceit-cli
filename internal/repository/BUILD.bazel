@@ -1,0 +1,20 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "repository",
+    srcs = ["faceit.go"],
+    importpath = "faceit-cli/internal/repository",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/entity",
+        "//internal/logger",
+        "@com_github_antihax_optional//:optional",
+        "@com_github_mconnat_go_faceit//:go-faceit",
+    ],
+)
+
+go_test(
+    name = "repository_test",
+    srcs = ["faceit_test.go"],
+    embed = [":repository"],
+)

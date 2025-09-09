@@ -1,0 +1,83 @@
+# Makefile для Bazel сборки faceit-cli
+
+# Переменные
+BAZEL := bazelisk
+TARGET := //:faceit-cli
+
+# Основные команды
+.PHONY: build test clean deps help
+
+# Сборка проекта
+build:
+	$(BAZEL) build $(TARGET)
+
+# Запуск тестов
+test:
+	$(BAZEL) test //...
+
+# Очистка кэша
+clean:
+	$(BAZEL) clean
+
+# Полная очистка
+clean-all:
+	$(BAZEL) clean --expunge
+
+# Обновление зависимостей
+deps:
+	$(BAZEL) run //:gazelle -- update-repos -from_file=go.mod
+	$(BAZEL) run //:gazelle
+
+# Запуск приложения
+run: build
+	./bazel-bin/faceit-cli_/faceit-cli
+
+# Анализ зависимостей
+deps-graph:
+	$(BAZEL) query --output=graph $(TARGET) | dot -Tpng -o deps.png
+
+# Показать все цели
+targets:
+	$(BAZEL) query //...
+
+# Подробная сборка
+build-verbose:
+	$(BAZEL) build $(TARGET) --verbose_failures
+
+# Подробные тесты
+test-verbose:
+	$(BAZEL) test //... --verbose_failures
+
+# Сборка для разных платформ
+build-linux:
+	$(BAZEL) build $(TARGET) --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64
+
+build-darwin:
+	$(BAZEL) build $(TARGET) --platforms=@io_bazel_rules_go//go/toolchain:darwin_amd64
+
+# Показать информацию о сборке
+info:
+	$(BAZEL) info
+
+# Показать конфигурацию
+config:
+	$(BAZEL) config
+
+# Помощь
+help:
+	@echo "Доступные команды:"
+	@echo "  build          - Собрать проект"
+	@echo "  test           - Запустить тесты"
+	@echo "  clean          - Очистить кэш"
+	@echo "  clean-all      - Полная очистка"
+	@echo "  deps           - Обновить зависимости"
+	@echo "  run            - Собрать и запустить приложение"
+	@echo "  deps-graph     - Создать граф зависимостей (требует graphviz)"
+	@echo "  targets        - Показать все цели"
+	@echo "  build-verbose  - Подробная сборка"
+	@echo "  test-verbose   - Подробные тесты"
+	@echo "  build-linux    - Сборка для Linux"
+	@echo "  build-darwin   - Сборка для macOS"
+	@echo "  info           - Информация о сборке"
+	@echo "  config         - Конфигурация"
+	@echo "  help           - Показать эту справку"

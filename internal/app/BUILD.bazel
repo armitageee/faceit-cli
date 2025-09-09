@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "app",
+    srcs = ["app.go"],
+    importpath = "faceit-cli/internal/app",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/cache",
+        "//internal/config",
+        "//internal/logger",
+        "//internal/repository",
+        "//internal/ui",
+        "@com_github_charmbracelet_bubbletea//:bubbletea",
+    ],
+)
+
+go_test(
+    name = "app_test",
+    srcs = ["app_test.go"],
+    embed = [":app"],
+    deps = [
+        "//internal/config",
+        "//internal/logger",
+    ],
+)

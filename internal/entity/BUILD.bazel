@@ -1,0 +1,20 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "entity",
+    srcs = [
+        "match.go",
+        "player.go",
+    ],
+    importpath = "faceit-cli/internal/entity",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "entity_test",
+    srcs = [
+        "entity_test.go",
+        "match_test.go",
+    ],
+    embed = [":entity"],
+)

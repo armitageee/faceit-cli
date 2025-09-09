@@ -1,0 +1,20 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "cache",
+    srcs = ["cache.go"],
+    importpath = "faceit-cli/internal/cache",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/entity",
+    ],
+)
+
+go_test(
+    name = "cache_test",
+    srcs = ["cache_test.go"],
+    embed = [":cache"],
+    deps = [
+        "//internal/entity",
+    ],
+)

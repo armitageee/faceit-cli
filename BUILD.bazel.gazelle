@@ -1,0 +1,7 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# Gazelle: go_repository rule
+gazelle(
+    name = "gazelle",
+    gazelle = "@bazel_gazelle//cmd/gazelle",
+)

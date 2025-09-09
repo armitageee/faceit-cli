@@ -1,0 +1,38 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "ui",
+    srcs = [
+        "clipboard.go",
+        "helpers.go",
+        "models.go",
+        "types.go",
+        "updates.go",
+        "views.go",
+    ],
+    importpath = "faceit-cli/internal/ui",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/config",
+        "//internal/entity",
+        "//internal/logger",
+        "//internal/repository",
+        "@com_github_charmbracelet_bubbletea//:bubbletea",
+        "@com_github_charmbracelet_lipgloss//:lipgloss",
+    ],
+)
+
+go_test(
+    name = "ui_test",
+    srcs = [
+        "clipboard_test.go",
+        "helpers_test.go",
+        "progress_test.go",
+    ],
+    embed = [":ui"],
+    deps = [
+        "//internal/config",
+        "//internal/entity",
+        "//internal/logger",
+    ],
+)
