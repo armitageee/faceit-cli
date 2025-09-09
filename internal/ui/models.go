@@ -121,7 +121,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		
 		// Start background loading if we loaded less than the maximum
 		if len(msg.matches) < m.config.MaxMatchesToLoad {
-			return m, m.loadBackgroundMatches()
+			m.backgroundLoading = true
+			// Use parallel loading for better performance
+			return m, m.loadBackgroundMatchesParallel()
 		}
 		return m, nil
 
@@ -141,8 +143,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(msg.matches) > len(m.matches) {
 			m.matches = msg.matches
 			// Recalculate pagination info
+			m.totalMatches = len(m.matches)
 			totalPages := (len(m.matches) + m.matchesPerPage - 1) / m.matchesPerPage
 			m.hasMoreMatches = m.currentPage < totalPages
+		}
+		
+		// Check if we need to continue loading
+		if len(m.matches) < m.config.MaxMatchesToLoad && len(msg.matches) > 0 {
+			// Continue loading with smaller batches
+			return m, m.loadBackgroundMatches()
+		} else {
+			// Background loading is complete
+			m.backgroundLoading = false
 		}
 		return m, nil
 

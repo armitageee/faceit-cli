@@ -203,6 +203,14 @@ func (m AppModel) viewMatches() string {
 	paginationInfo := fmt.Sprintf("Page %d/%d | Matches %d-%d of %d", 
 		m.currentPage, totalPages, startMatch, endMatch, len(m.matches))
 	
+	// Add background loading indicator
+	if m.backgroundLoading {
+		loaded := len(m.matches)
+		total := m.config.MaxMatchesToLoad
+		percentage := float64(loaded) / float64(total) * 100
+		paginationInfo += fmt.Sprintf(" | 🔄 Loading more... (%d/%d, %.0f%%)", loaded, total, percentage)
+	}
+	
 	if m.currentPage < totalPages {
 		paginationInfo += " | Next (→)"
 	}

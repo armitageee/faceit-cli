@@ -158,6 +158,8 @@ type AppModel struct {
 	progress           float64
 	progressMessage    string
 	progressType       string // "matches", "stats", "match_stats", etc.
+	// Background loading fields
+	backgroundLoading  bool
 }
 
 // Custom message types for async operations

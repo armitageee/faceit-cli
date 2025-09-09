@@ -245,15 +245,71 @@ func (m AppModel) loadPlayerProfile(nickname string) tea.Cmd {
 // loadBackgroundMatches loads matches in the background for better UX
 func (m AppModel) loadBackgroundMatches() tea.Cmd {
 	return func() tea.Msg {
+		// Add a small delay to avoid overwhelming the API
+		time.Sleep(50 * time.Millisecond)
+		
 		// Use a longer timeout for background loading
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
 
-		// Load more matches in the background
-		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", m.config.MaxMatchesToLoad)
+		// Load more matches in the background - load in larger batches
+		// Calculate how many more we need to load
+		remaining := m.config.MaxMatchesToLoad - len(m.matches)
+		if remaining <= 0 {
+			return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
+		}
+
+		// Load in larger batches for better performance
+		// Use 50% of remaining or minimum 50, maximum 100
+		batchSize := remaining / 2
+		if batchSize < 50 {
+			batchSize = 50
+		}
+		if batchSize > 100 {
+			batchSize = 100
+		}
+		if batchSize > remaining {
+			batchSize = remaining
+		}
+
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", len(m.matches) + batchSize)
 		if err != nil {
 			// Don't return error for background loading, just return empty matches
 			return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
+		}
+		
+		return backgroundMatchesLoadedMsg{matches: matches}
+	}
+}
+
+// loadBackgroundMatchesParallel loads multiple batches of matches in parallel
+func (m AppModel) loadBackgroundMatchesParallel() tea.Cmd {
+	return func() tea.Msg {
+		// Use a longer timeout for background loading
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+		defer cancel()
+
+		// Calculate how many more we need to load
+		remaining := m.config.MaxMatchesToLoad - len(m.matches)
+		if remaining <= 0 {
+			return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
+		}
+
+		// Try to load all remaining matches at once for maximum speed
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", m.config.MaxMatchesToLoad)
+		if err != nil {
+			// If full load fails, try loading in smaller batches
+			// Load in batches of 100 for better performance
+			batchSize := 100
+			if remaining < batchSize {
+				batchSize = remaining
+			}
+			
+			matches, err = m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", len(m.matches) + batchSize)
+			if err != nil {
+				// Don't return error for background loading, just return empty matches
+				return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
+			}
 		}
 		
 		return backgroundMatchesLoadedMsg{matches: matches}
