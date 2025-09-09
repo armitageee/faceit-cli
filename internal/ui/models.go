@@ -181,6 +181,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.lifetimeStats = msg.stats
 		return m, nil
 
+	case progressUpdateMsg:
+		m.progress = msg.progress
+		m.progressMessage = msg.message
+		m.progressType = msg.progressType
+		return m, nil
+
 	case errorMsg:
 		m.loading = false
 		m.error = msg.err
@@ -194,7 +200,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View renders the current state
 func (m AppModel) View() string {
 	if m.loading {
-		return m.viewLoading()
+		return m.renderLoadingScreen()
 	}
 
 	switch m.state {

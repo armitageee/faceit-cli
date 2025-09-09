@@ -154,6 +154,10 @@ type AppModel struct {
 	totalMatches       int
 	matchesPerPage     int
 	hasMoreMatches     bool
+	// Progress bar fields
+	progress           float64
+	progressMessage    string
+	progressType       string // "matches", "stats", "match_stats", etc.
 }
 
 // Custom message types for async operations
@@ -266,6 +270,25 @@ var (
 			Foreground(lipgloss.Color("#555555"))
 
 	helpTextStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#888888")).
-			Italic(true)
+		Foreground(lipgloss.Color("#888888")).
+		Italic(true)
+
+	// Progress bar styles
+	progressBarStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#4A90E2")).
+		Background(lipgloss.Color("#2C3E50")).
+		Bold(true)
+
+	progressBarFillStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#FFFFFF")).
+		Background(lipgloss.Color("#4A90E2")).
+		Bold(true)
+
+	progressMessageStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#E8E8E8")).
+		Bold(true)
+
+	progressPercentageStyle = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#4A90E2")).
+		Bold(true)
 )

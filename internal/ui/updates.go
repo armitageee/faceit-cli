@@ -56,7 +56,10 @@ func (m AppModel) updateProfile(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Load recent matches
 		m.loading = true
 		m.state = StateLoading
-		return m, m.loadRecentMatches()
+		m.progress = 0
+		m.progressMessage = "Loading recent matches..."
+		m.progressType = "matches"
+		return m, tea.Batch(m.loadMatchesWithProgress(), m.simulateProgress())
 	case "s":
 		// Load statistics
 		m.loading = true
@@ -607,5 +610,103 @@ func (m AppModel) loadPlayerMatchStats() tea.Cmd {
 		}
 
 		return playerMatchStatsLoadedMsg{matchStats: stats}
+	}
+}
+
+// updateProgress updates the progress bar
+func (m AppModel) updateProgress(progress float64, message string, progressType string) AppModel {
+	m.progress = progress
+	m.progressMessage = message
+	m.progressType = progressType
+	return m
+}
+
+// resetProgress resets the progress bar
+func (m AppModel) resetProgress() AppModel {
+	m.progress = 0
+	m.progressMessage = ""
+	m.progressType = ""
+	return m
+}
+
+// progressUpdateMsg is a message for updating progress
+type progressUpdateMsg struct {
+	progress     float64
+	message      string
+	progressType string
+}
+
+// updateProgressCmd creates a command to update progress
+func updateProgressCmd(progress float64, message string, progressType string) tea.Cmd {
+	return func() tea.Msg {
+		return progressUpdateMsg{
+			progress:     progress,
+			message:      message,
+			progressType: progressType,
+		}
+	}
+}
+
+// loadMatchesWithProgress loads matches with progress updates
+func (m AppModel) loadMatchesWithProgress() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Step 1: Load initial batch
+		initialLimit := 20
+		if initialLimit > m.config.MaxMatchesToLoad {
+			initialLimit = m.config.MaxMatchesToLoad
+		}
+		
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", initialLimit)
+		if err != nil {
+			return errorMsg{err: err.Error()}
+		}
+		
+		// Return initial matches
+		return matchesLoadedMsg{matches: matches}
+	}
+}
+
+// loadMoreMatchesWithProgress loads more matches with progress updates
+func (m AppModel) loadMoreMatchesWithProgress() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Calculate how many more matches to load
+		remaining := m.config.MaxMatchesToLoad - len(m.matches)
+		if remaining <= 0 {
+			return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
+		}
+
+		// Load remaining matches
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", remaining)
+		if err != nil {
+			return errorMsg{err: err.Error()}
+		}
+		
+		return backgroundMatchesLoadedMsg{matches: matches}
+	}
+}
+
+// simulateProgress simulates progress updates for better UX
+func (m AppModel) simulateProgress() tea.Cmd {
+	return func() tea.Msg {
+		// Simulate progress updates
+		time.Sleep(100 * time.Millisecond)
+		
+		// Calculate progress based on time elapsed
+		progress := m.progress + 0.1
+		if progress > 0.9 {
+			progress = 0.9 // Don't complete until real data is loaded
+		}
+		
+		return progressUpdateMsg{
+			progress:     progress,
+			message:      m.progressMessage,
+			progressType: m.progressType,
+		}
 	}
 }

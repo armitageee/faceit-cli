@@ -563,3 +563,99 @@ func (m AppModel) viewError() string {
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center, error, help))
 }
+
+// renderProgressBar renders a progress bar with message
+func (m AppModel) renderProgressBar() string {
+	if m.progressMessage == "" {
+		return ""
+	}
+
+	// Calculate progress bar width (max 50 characters)
+	barWidth := 50
+	if m.width < 60 {
+		barWidth = m.width - 10
+	}
+	if barWidth < 20 {
+		barWidth = 20
+	}
+
+	// Calculate filled portion
+	filled := int(float64(barWidth) * m.progress)
+	if filled > barWidth {
+		filled = barWidth
+	}
+	if filled < 0 {
+		filled = 0
+	}
+
+	// Create animated progress bar with different characters
+	var bar string
+	if m.progress < 1.0 {
+		// Animated progress bar
+		bar = strings.Repeat("█", filled)
+		if filled < barWidth {
+			// Add animated character
+			bar += "▌"
+		}
+		bar += strings.Repeat("░", barWidth-filled-1)
+	} else {
+		// Complete progress bar
+		bar = strings.Repeat("█", barWidth)
+	}
+
+	progressBar := progressBarStyle.Render(bar)
+
+	// Add percentage with animation
+	percentage := fmt.Sprintf("%.0f%%", m.progress*100)
+	percentageText := progressPercentageStyle.Render(percentage)
+
+	// Create message with loading indicator
+	var message string
+	if m.progress < 1.0 {
+		// Animated loading indicator
+		loadingChars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		loadingIndex := int(time.Now().UnixNano()/100000000) % len(loadingChars)
+		message = progressMessageStyle.Render(fmt.Sprintf("%s %s", loadingChars[loadingIndex], m.progressMessage))
+	} else {
+		message = progressMessageStyle.Render(fmt.Sprintf("✅ %s", m.progressMessage))
+	}
+
+	// Add progress type indicator
+	var typeIndicator string
+	switch m.progressType {
+	case "matches":
+		typeIndicator = "🎮"
+	case "stats":
+		typeIndicator = "📊"
+	case "match_stats":
+		typeIndicator = "📈"
+	default:
+		typeIndicator = "⏳"
+	}
+
+	// Combine all elements
+	content := lipgloss.JoinVertical(lipgloss.Center,
+		message,
+		"",
+		progressBar,
+		"",
+		percentageText,
+		"",
+		typeIndicator,
+	)
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
+}
+
+// renderLoadingScreen renders a loading screen with progress bar
+func (m AppModel) renderLoadingScreen() string {
+	asciiTitle := generateASCIILogo()
+	title := titleStyle.Render("⏳ Loading...")
+	
+	progressContent := m.renderProgressBar()
+	
+	help := helpStyle.Render("Please wait while we load your data...")
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center, asciiTitle, title, progressContent, help))
+}
