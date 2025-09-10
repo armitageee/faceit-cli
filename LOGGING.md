@@ -92,6 +92,12 @@ When Kafka is enabled, logs are also sent to the configured Kafka topic with the
 
 ### Running with Debug Logging
 
+**Using Bazel (recommended):**
+```bash
+LOG_LEVEL=debug bazel run //:faceit-cli
+```
+
+**Using Go directly:**
 ```bash
 LOG_LEVEL=debug go run main.go
 ```
@@ -105,7 +111,10 @@ make kafka-up
 # Run with Kafka logging
 make run-kafka
 
-# Or manually
+# Or manually with Bazel
+KAFKA_ENABLED=true LOG_LEVEL=debug bazel run //:faceit-cli
+
+# Or manually with Go
 KAFKA_ENABLED=true LOG_LEVEL=debug go run main.go
 ```
 
@@ -115,7 +124,10 @@ KAFKA_ENABLED=true LOG_LEVEL=debug go run main.go
 # View Kafka infrastructure logs
 make kafka-logs
 
-# View application logs with Kafka
+# View application logs with Kafka (using Bazel)
+KAFKA_ENABLED=true LOG_LEVEL=debug bazel run //:faceit-cli 2>&1 | jq .
+
+# Or using Go directly
 KAFKA_ENABLED=true LOG_LEVEL=debug go run main.go 2>&1 | jq .
 ```
 
@@ -140,7 +152,9 @@ The application has **three ways** to create the Kafka topic:
 
 ```bash
 # Method 1: Automatic (default) - Topic created on first log message
-KAFKA_ENABLED=true go run main.go
+KAFKA_ENABLED=true bazel run //:faceit-cli  # Using Bazel
+# OR
+KAFKA_ENABLED=true go run main.go           # Using Go
 
 # Method 2: Docker Compose init - Topic created during startup
 make kafka-up  # Creates topic automatically
@@ -226,7 +240,10 @@ Production mode is designed for deployment environments where you don't want log
 make run-production      # Production mode without Kafka
 make run-prod-kafka      # Production mode with Kafka
 
-# Manual configuration
+# Manual configuration with Bazel
+PRODUCTION_MODE=true LOG_TO_STDOUT=false KAFKA_ENABLED=true bazel run //:faceit-cli
+
+# Or with Go
 PRODUCTION_MODE=true LOG_TO_STDOUT=false KAFKA_ENABLED=true go run main.go
 ```
 
