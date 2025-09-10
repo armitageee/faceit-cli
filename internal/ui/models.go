@@ -121,7 +121,9 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		
 		// Start background loading if we loaded less than the maximum
 		if len(msg.matches) < m.config.MaxMatchesToLoad {
-			return m, m.loadBackgroundMatches()
+			m.backgroundLoading = true
+			// Use parallel loading for better performance
+			return m, m.loadBackgroundMatchesParallel()
 		}
 		return m, nil
 
@@ -141,8 +143,18 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(msg.matches) > len(m.matches) {
 			m.matches = msg.matches
 			// Recalculate pagination info
+			m.totalMatches = len(m.matches)
 			totalPages := (len(m.matches) + m.matchesPerPage - 1) / m.matchesPerPage
 			m.hasMoreMatches = m.currentPage < totalPages
+		}
+		
+		// Check if we need to continue loading
+		if len(m.matches) < m.config.MaxMatchesToLoad && len(msg.matches) > 0 {
+			// Continue loading with smaller batches
+			return m, m.loadBackgroundMatches()
+		} else {
+			// Background loading is complete
+			m.backgroundLoading = false
 		}
 		return m, nil
 
@@ -181,6 +193,12 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.lifetimeStats = msg.stats
 		return m, nil
 
+	case progressUpdateMsg:
+		m.progress = msg.progress
+		m.progressMessage = msg.message
+		m.progressType = msg.progressType
+		return m, nil
+
 	case errorMsg:
 		m.loading = false
 		m.error = msg.err
@@ -194,7 +212,7 @@ func (m AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View renders the current state
 func (m AppModel) View() string {
 	if m.loading {
-		return m.viewLoading()
+		return m.renderLoadingScreen()
 	}
 
 	switch m.state {
@@ -220,6 +238,8 @@ func (m AppModel) View() string {
 		return m.viewComparisonInput()
 	case StateComparison:
 		return m.viewComparison()
+	case StateLoading:
+		return m.renderLoadingScreen()
 	case StateError:
 		return m.viewError()
 	default:
@@ -252,9 +272,6 @@ var (
 			Foreground(lipgloss.Color("#626262")).
 			Italic(true)
 
-	loadingStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#7D56F4")).
-			Bold(true)
 
 	winStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#04B575")).

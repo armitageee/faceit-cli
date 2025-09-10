@@ -56,7 +56,10 @@ func (m AppModel) updateProfile(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Load recent matches
 		m.loading = true
 		m.state = StateLoading
-		return m, m.loadRecentMatches()
+		m.progress = 0
+		m.progressMessage = "Loading recent matches..."
+		m.progressType = "matches"
+		return m, tea.Batch(m.loadMatchesWithProgress(), m.simulateProgress())
 	case "s":
 		// Load statistics
 		m.loading = true
@@ -237,40 +240,76 @@ func (m AppModel) loadPlayerProfile(nickname string) tea.Cmd {
 	}
 }
 
-// loadRecentMatches loads recent matches asynchronously
-func (m AppModel) loadRecentMatches() tea.Cmd {
-	return func() tea.Msg {
-		// Load a smaller batch first for quick display
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		// Load initial batch (first 20 matches for quick display)
-		initialLimit := 20
-		if initialLimit > m.config.MaxMatchesToLoad {
-			initialLimit = m.config.MaxMatchesToLoad
-		}
-		
-		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", initialLimit)
-		if err != nil {
-			return errorMsg{err: err.Error()}
-		}
-		return matchesLoadedMsg{matches: matches}
-	}
-}
 
 
 // loadBackgroundMatches loads matches in the background for better UX
 func (m AppModel) loadBackgroundMatches() tea.Cmd {
 	return func() tea.Msg {
+		// Add a small delay to avoid overwhelming the API
+		time.Sleep(50 * time.Millisecond)
+		
 		// Use a longer timeout for background loading
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 		defer cancel()
 
-		// Load more matches in the background
-		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", m.config.MaxMatchesToLoad)
+		// Load more matches in the background - load in larger batches
+		// Calculate how many more we need to load
+		remaining := m.config.MaxMatchesToLoad - len(m.matches)
+		if remaining <= 0 {
+			return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
+		}
+
+		// Load in larger batches for better performance
+		// Use 50% of remaining or minimum 50, maximum 100
+		batchSize := remaining / 2
+		if batchSize < 50 {
+			batchSize = 50
+		}
+		if batchSize > 100 {
+			batchSize = 100
+		}
+		if batchSize > remaining {
+			batchSize = remaining
+		}
+
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", len(m.matches) + batchSize)
 		if err != nil {
 			// Don't return error for background loading, just return empty matches
 			return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
+		}
+		
+		return backgroundMatchesLoadedMsg{matches: matches}
+	}
+}
+
+// loadBackgroundMatchesParallel loads multiple batches of matches in parallel
+func (m AppModel) loadBackgroundMatchesParallel() tea.Cmd {
+	return func() tea.Msg {
+		// Use a longer timeout for background loading
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+		defer cancel()
+
+		// Calculate how many more we need to load
+		remaining := m.config.MaxMatchesToLoad - len(m.matches)
+		if remaining <= 0 {
+			return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
+		}
+
+		// Try to load all remaining matches at once for maximum speed
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", m.config.MaxMatchesToLoad)
+		if err != nil {
+			// If full load fails, try loading in smaller batches
+			// Load in batches of 100 for better performance
+			batchSize := 100
+			if remaining < batchSize {
+				batchSize = remaining
+			}
+			
+			matches, err = m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", len(m.matches) + batchSize)
+			if err != nil {
+				// Don't return error for background loading, just return empty matches
+				return backgroundMatchesLoadedMsg{matches: []entity.PlayerMatchSummary{}}
+			}
 		}
 		
 		return backgroundMatchesLoadedMsg{matches: matches}
@@ -577,14 +616,111 @@ func (m AppModel) updatePlayerMatchDetail(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // loadPlayerMatchStats loads detailed match statistics for a player's match
 func (m AppModel) loadPlayerMatchStats() tea.Cmd {
 	return func() tea.Msg {
+		if m.logger != nil {
+			m.logger.Debug("Loading player match stats", map[string]interface{}{
+				"match_id": m.selectedPlayerMatch.MatchID,
+				"map":      m.selectedPlayerMatch.Map,
+			})
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		stats, err := m.repo.GetMatchStats(ctx, m.selectedPlayerMatch.MatchID)
 		if err != nil {
+			if m.logger != nil {
+				m.logger.Error("Failed to load player match stats", map[string]interface{}{
+					"match_id": m.selectedPlayerMatch.MatchID,
+					"error":    err.Error(),
+				})
+			}
 			return errorMsg{err: fmt.Sprintf("Failed to load match stats: %v", err)}
 		}
 
+		if m.logger != nil {
+			m.logger.Debug("Player match stats loaded successfully", map[string]interface{}{
+				"match_id": m.selectedPlayerMatch.MatchID,
+				"map":      stats.Map,
+				"score":    stats.Score,
+			})
+		}
+
 		return playerMatchStatsLoadedMsg{matchStats: stats}
+	}
+}
+
+// updateProgress updates the progress bar
+func (m AppModel) updateProgress(progress float64, message string, progressType string) AppModel {
+	m.progress = progress
+	m.progressMessage = message
+	m.progressType = progressType
+	return m
+}
+
+// resetProgress resets the progress bar
+func (m AppModel) resetProgress() AppModel {
+	m.progress = 0
+	m.progressMessage = ""
+	m.progressType = ""
+	return m
+}
+
+// progressUpdateMsg is a message for updating progress
+type progressUpdateMsg struct {
+	progress     float64
+	message      string
+	progressType string
+}
+
+// updateProgressCmd creates a command to update progress
+func updateProgressCmd(progress float64, message string, progressType string) tea.Cmd {
+	return func() tea.Msg {
+		return progressUpdateMsg{
+			progress:     progress,
+			message:      message,
+			progressType: progressType,
+		}
+	}
+}
+
+// loadMatchesWithProgress loads matches with progress updates
+func (m AppModel) loadMatchesWithProgress() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Step 1: Load initial batch
+		initialLimit := 20
+		if initialLimit > m.config.MaxMatchesToLoad {
+			initialLimit = m.config.MaxMatchesToLoad
+		}
+		
+		matches, err := m.repo.GetPlayerRecentMatches(ctx, m.player.ID, "cs2", initialLimit)
+		if err != nil {
+			return errorMsg{err: err.Error()}
+		}
+		
+		// Return initial matches
+		return matchesLoadedMsg{matches: matches}
+	}
+}
+
+// simulateProgress simulates progress updates for better UX
+func (m AppModel) simulateProgress() tea.Cmd {
+	return func() tea.Msg {
+		// Simulate progress updates
+		time.Sleep(100 * time.Millisecond)
+		
+		// Calculate progress based on time elapsed
+		progress := m.progress + 0.1
+		if progress > 0.9 {
+			progress = 0.9 // Don't complete until real data is loaded
+		}
+		
+		return progressUpdateMsg{
+			progress:     progress,
+			message:      m.progressMessage,
+			progressType: m.progressType,
+		}
 	}
 }

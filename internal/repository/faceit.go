@@ -10,6 +10,7 @@ import (
 	"sort"
 
 	"faceit-cli/internal/entity"
+	"faceit-cli/internal/logger"
 
 	"github.com/antihax/optional"
 	faceit "github.com/mconnat/go-faceit"
@@ -29,6 +30,7 @@ type FaceitRepository interface {
 type faceitRepository struct {
 	client *faceit.APIClient
 	apiKey string
+	logger *logger.Logger
 }
 
 // NewFaceitRepository constructs a repository backed by the FACEIT API.
@@ -38,9 +40,21 @@ type faceitRepository struct {
 func NewFaceitRepository(apiKey string) FaceitRepository {
 	cfg := faceit.NewConfiguration()
 	client := faceit.NewAPIClient(cfg)
+	
+	// Create logger with default config
+	loggerConfig := logger.Config{
+		Level:          logger.LogLevelInfo,
+		KafkaEnabled:   false,
+		ServiceName:    "faceit-repository",
+		ProductionMode: false,
+		LogToStdout:    true,
+	}
+	appLogger, _ := logger.New(loggerConfig)
+	
 	return &faceitRepository{
 		client: client,
 		apiKey: apiKey,
+		logger: appLogger,
 	}
 }
 
@@ -56,7 +70,12 @@ func (r *faceitRepository) contextWithAPIKey(ctx context.Context) context.Contex
 // API calls: first a search to find the player ID and then a fetch of
 // the player's profile.
 func (r *faceitRepository) GetPlayerByNickname(ctx context.Context, nickname string) (*entity.PlayerProfile, error) {
+	r.logger.Debug("Starting GetPlayerByNickname", map[string]interface{}{
+		"nickname": nickname,
+	})
+
 	if nickname == "" {
+		r.logger.Debug("Empty nickname provided", nil)
 		return nil, fmt.Errorf("nickname must not be empty")
 	}
 
@@ -67,19 +86,49 @@ func (r *faceitRepository) GetPlayerByNickname(ctx context.Context, nickname str
 	// ambiguities here by matching the exact nickname or by returning
 	// multiple results.
 	opts := &faceit.SearchApiSearchPlayersOpts{}
+	
+	r.logger.Debug("Searching players by nickname", map[string]interface{}{
+		"nickname": nickname,
+		"options":  opts,
+	})
+	
 	list, _, err := r.client.SearchApi.SearchPlayers(ctx, nickname, opts)
 	if err != nil {
+		r.logger.Error("Failed to search players", map[string]interface{}{
+			"nickname": nickname,
+			"error":    err.Error(),
+		})
 		return nil, fmt.Errorf("search players: %w", err)
 	}
+	
+	r.logger.Debug("Search players response", map[string]interface{}{
+		"nickname":     nickname,
+		"results_count": len(list.Items),
+	})
+	
 	if len(list.Items) == 0 {
+		r.logger.Debug("No players found", map[string]interface{}{
+			"nickname": nickname,
+		})
 		return nil, fmt.Errorf("player not found: %s", nickname)
 	}
 	playerID := list.Items[0].PlayerId
+	
+	r.logger.Debug("Found player ID, fetching details", map[string]interface{}{
+		"nickname": nickname,
+		"player_id": playerID,
+	})
+	
 	// Retrieve full player details using the resolved ID. A separate
 	// endpoint exists to fetch details directly by nickname, but the
 	// search call ensures we have a valid ID before proceeding.
 	player, _, err := r.client.PlayersApi.GetPlayer(ctx, playerID)
 	if err != nil {
+		r.logger.Error("Failed to get player details", map[string]interface{}{
+			"nickname":  nickname,
+			"player_id": playerID,
+			"error":     err.Error(),
+		})
 		return nil, fmt.Errorf("get player: %w", err)
 	}
 	profile := &entity.PlayerProfile{
@@ -429,22 +478,49 @@ func (r *faceitRepository) processMatches(items []faceit.MatchHistory, playerID 
 
 // GetMatchStats retrieves detailed match statistics by match ID
 func (r *faceitRepository) GetMatchStats(ctx context.Context, matchID string) (*entity.MatchStats, error) {
+	r.logger.Debug("Starting GetMatchStats", map[string]interface{}{
+		"match_id": matchID,
+	})
+
 	if matchID == "" {
+		r.logger.Debug("Empty matchID provided", nil)
 		return nil, fmt.Errorf("matchID must not be empty")
 	}
 
 	ctx = r.contextWithAPIKey(ctx)
 	
+	r.logger.Debug("Fetching match details", map[string]interface{}{
+		"match_id": matchID,
+	})
+	
 	// Try to get match details first
 	match, _, err := r.client.MatchesApi.GetMatch(ctx, matchID)
 	if err != nil {
+		r.logger.Error("Failed to get match details", map[string]interface{}{
+			"match_id": matchID,
+			"error":    err.Error(),
+		})
 		// If match not found, return a helpful error
 		return nil, fmt.Errorf("match not found: %s. Please check the Match ID and try again", matchID)
 	}
 
+	r.logger.Debug("Match details retrieved", map[string]interface{}{
+		"match_id":    matchID,
+		"status":      match.Status,
+		"finished_at": match.FinishedAt,
+	})
+
+	r.logger.Debug("Fetching match statistics", map[string]interface{}{
+		"match_id": matchID,
+	})
+
 	// Get match statistics
 	stats, _, err := r.client.MatchesApi.GetMatchStats(ctx, matchID)
 	if err != nil {
+		r.logger.Error("Failed to get match statistics", map[string]interface{}{
+			"match_id": matchID,
+			"error":    err.Error(),
+		})
 		// If stats not available, return basic match info
 		return &entity.MatchStats{
 			MatchID:    matchID,
