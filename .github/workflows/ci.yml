@@ -1,7 +1,7 @@
 name: CI/CD Pipeline
 
 # This workflow runs only when core application files are changed
-# Triggers: internal/**, main.go, go.mod, go.sum, Dockerfile, .dockerignore, workflow files
+# Triggers: internal/**, main.go, go.mod, go.sum, Dockerfile, .dockerignore, workflow files, Bazel files
 on:
   push:
     branches: [ main, develop ]
@@ -13,6 +13,11 @@ on:
       - 'Dockerfile'            # Docker configuration
       - '.dockerignore'         # Docker ignore file
       - '.github/workflows/**'  # CI/CD workflow changes
+      - 'BUILD.bazel'           # Bazel build files
+      - 'WORKSPACE'             # Bazel workspace
+      - 'MODULE.bazel'          # Bazel module
+      - '.bazelrc'              # Bazel configuration
+      - '.bazelversion'         # Bazel version
   pull_request:
     branches: [ main ]
     paths:
@@ -23,11 +28,16 @@ on:
       - 'Dockerfile'
       - '.dockerignore'
       - '.github/workflows/**'
+      - 'BUILD.bazel'
+      - 'WORKSPACE'
+      - 'MODULE.bazel'
+      - '.bazelrc'
+      - '.bazelversion'
   release:
     types: [ published ]
 
 env:
-  GO_VERSION: '1.22'
+  BAZEL_VERSION: '7.0.0'
 
 jobs:
   unit-test:
@@ -38,24 +48,30 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up Go
-      uses: actions/setup-go@v5
+    - name: Set up Bazelisk
+      uses: bazelbuild/setup-bazelisk@v3
+      
+    - name: Mount bazel cache
+      uses: actions/cache@v4
       with:
-        go-version: ${{ env.GO_VERSION }}
-        cache: true
+        path: |
+          ~/.cache/bazel
+        key: bazel-cache-${{ runner.os }}-${{ hashFiles('**/BUILD.bazel', '**/WORKSPACE', '**/MODULE.bazel') }}
+        restore-keys: |
+          bazel-cache-${{ runner.os }}-
         
     - name: Run unit tests
       run: |
-        go test -v -race -coverprofile=coverage.out -short ./...
+        bazel test //... --test_tag_filters=-integration --test_output=errors --verbose_failures
         
     - name: Generate coverage report
       run: |
-        go tool cover -html=coverage.out -o coverage.html
+        bazel coverage //... --test_tag_filters=-integration --combined_report=lcov
         
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
       with:
-        file: ./coverage.out
+        files: ./bazel-out/_coverage/_coverage_report.dat
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
@@ -69,17 +85,23 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up Go
-      uses: actions/setup-go@v5
+    - name: Set up Bazelisk
+      uses: bazelbuild/setup-bazelisk@v3
+      
+    - name: Mount bazel cache
+      uses: actions/cache@v4
       with:
-        go-version: ${{ env.GO_VERSION }}
-        cache: true
+        path: |
+          ~/.cache/bazel
+        key: bazel-cache-${{ runner.os }}-${{ hashFiles('**/BUILD.bazel', '**/WORKSPACE', '**/MODULE.bazel') }}
+        restore-keys: |
+          bazel-cache-${{ runner.os }}-
         
     - name: Run integration tests
       env:
         FACEIT_API_KEY: ${{ secrets.FACEIT_API_KEY }}
       run: |
-        go test -v -race ./internal/repository/...
+        bazel test //internal/repository/... --test_tag_filters=integration --test_output=errors --verbose_failures
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -91,7 +113,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: ${{ env.GO_VERSION }}
+        go-version: '1.22'
         cache: true
         
     - name: Run golangci-lint
@@ -99,5 +121,29 @@ jobs:
       with:
         version: latest
         args: --timeout=5m
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Bazelisk
+      uses: bazelbuild/setup-bazelisk@v3
+      
+    - name: Mount bazel cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/bazel
+        key: bazel-cache-${{ runner.os }}-${{ hashFiles('**/BUILD.bazel', '**/WORKSPACE', '**/MODULE.bazel') }}
+        restore-keys: |
+          bazel-cache-${{ runner.os }}-
+        
+    - name: Build application
+      run: |
+        bazel build //:faceit-cli --verbose_failures
 
   

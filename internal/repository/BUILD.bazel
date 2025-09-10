@@ -17,4 +17,5 @@ go_test(
     name = "repository_test",
     srcs = ["faceit_test.go"],
     embed = [":repository"],
+    tags = ["integration"],
 )

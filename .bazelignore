@@ -1,0 +1,9 @@
+# Ignore node_modules if any
+node_modules
+# Ignore release artifacts
+release/
+# Ignore coverage files
+coverage.out
+coverage.html
+# Ignore docker artifacts
+*.log

@@ -6,12 +6,26 @@ This document explains how to run tests for the FACEIT CLI application.
 
 ### Unit Tests
 Fast tests that don't require external dependencies:
+
+**Using Bazel (recommended):**
+```bash
+bazel test //... --test_tag_filters=-integration
+```
+
+**Using Go directly:**
 ```bash
 go test -v -short ./...
 ```
 
 ### Integration Tests
 Tests that require FACEIT API access:
+
+**Using Bazel (recommended):**
+```bash
+FACEIT_API_KEY=your_api_key bazel test //internal/repository/... --test_tag_filters=integration
+```
+
+**Using Go directly:**
 ```bash
 FACEIT_API_KEY=your_api_key go test -v ./internal/repository/
 ```
@@ -42,6 +56,20 @@ After adding the secret, push to `main` or `develop` branch to trigger:
 ## Local Testing
 
 ### Running All Tests
+
+**Using Bazel (recommended):**
+```bash
+# Unit tests only (fast)
+bazel test //... --test_tag_filters=-integration
+
+# Integration tests (requires API key)
+FACEIT_API_KEY=your_key bazel test //... --test_tag_filters=integration
+
+# All tests
+FACEIT_API_KEY=your_key bazel test //...
+```
+
+**Using Make with Bazel:**
 ```bash
 # Unit tests only (fast)
 make test
@@ -51,6 +79,20 @@ FACEIT_API_KEY=your_key make test-integration
 ```
 
 ### Running Specific Tests
+
+**Using Bazel (recommended):**
+```bash
+# Test specific package
+bazel test //internal/repository/...
+
+# Test with verbose output
+bazel test //internal/repository/... --test_output=all
+
+# Run benchmarks
+bazel test //internal/repository/... --test_arg=-bench=.
+```
+
+**Using Go directly:**
 ```bash
 # Test specific package
 go test -v ./internal/repository/
@@ -64,7 +106,13 @@ go test -v -bench=. ./internal/repository/
 
 ## Test Coverage
 
-View test coverage:
+**Using Bazel (recommended):**
+```bash
+bazel coverage //... --test_tag_filters=-integration --combined_report=lcov
+# Coverage report will be in bazel-out/_coverage/_coverage_report.dat
+```
+
+**Using Go directly:**
 ```bash
 go test -v -coverprofile=coverage.out ./...
 go tool cover -html=coverage.out -o coverage.html
