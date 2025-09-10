@@ -4,7 +4,7 @@ name: CI/CD Pipeline
 # Triggers: internal/**, main.go, go.mod, go.sum, Dockerfile, .dockerignore, workflow files, Bazel files
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, feat/bazelbuild ]
     paths:
       - 'internal/**'           # Core application code
       - 'main.go'               # Main application entry point
