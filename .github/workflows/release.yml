@@ -7,9 +7,6 @@ on:
     tags:
       - 'v*'
 
-env:
-  GO_VERSION: '1.22'
-
 jobs:
   release:
     name: Create Release
@@ -23,26 +20,41 @@ jobs:
       with:
         fetch-depth: 0
         
-    - name: Set up Go
-      uses: actions/setup-go@v5
+    - name: Set up Bazelisk
+      uses: bazelbuild/setup-bazelisk@v3
+      
+    - name: Mount bazel cache
+      uses: actions/cache@v4
       with:
-        go-version: ${{ env.GO_VERSION }}
-        cache: true
+        path: |
+          ~/.cache/bazel
+        key: bazel-cache-${{ runner.os }}-${{ hashFiles('**/BUILD.bazel', '**/WORKSPACE', '**/MODULE.bazel') }}
+        restore-keys: |
+          bazel-cache-${{ runner.os }}-
         
     - name: Run tests
-      run: go test ./...
+      run: bazel test //... --test_tag_filters=-integration
       
     - name: Build for multiple platforms
       run: |
         # Create release directory
         mkdir -p release
         
-        # Build for different platforms
-        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o release/faceit-cli-linux-amd64 main.go
-        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o release/faceit-cli-linux-arm64 main.go
-        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o release/faceit-cli-windows-amd64.exe main.go
-        GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o release/faceit-cli-darwin-amd64 main.go
-        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o release/faceit-cli-darwin-arm64 main.go
+        # Build for different platforms using Bazel
+        bazel build //:faceit-cli --platforms=@io_bazel_rules_go//go/toolchain:linux_amd64
+        cp bazel-bin/faceit-cli_/faceit-cli release/faceit-cli-linux-amd64
+        
+        bazel build //:faceit-cli --platforms=@io_bazel_rules_go//go/toolchain:linux_arm64
+        cp bazel-bin/faceit-cli_/faceit-cli release/faceit-cli-linux-arm64
+        
+        bazel build //:faceit-cli --platforms=@io_bazel_rules_go//go/toolchain:windows_amd64
+        cp bazel-bin/faceit-cli_/faceit-cli release/faceit-cli-windows-amd64.exe
+        
+        bazel build //:faceit-cli --platforms=@io_bazel_rules_go//go/toolchain:darwin_amd64
+        cp bazel-bin/faceit-cli_/faceit-cli release/faceit-cli-darwin-amd64
+        
+        bazel build //:faceit-cli --platforms=@io_bazel_rules_go//go/toolchain:darwin_arm64
+        cp bazel-bin/faceit-cli_/faceit-cli release/faceit-cli-darwin-arm64
         
     - name: Create checksums
       run: |
