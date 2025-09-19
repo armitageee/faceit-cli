@@ -6,9 +6,10 @@ import (
 	"log"
 	"os"
 
-	"faceit-cli/internal/app"
-	"faceit-cli/internal/config"
-	"faceit-cli/internal/logger"
+	"github.com/armitageee/faceit-cli/internal/app"
+	"github.com/armitageee/faceit-cli/internal/config"
+	"github.com/armitageee/faceit-cli/internal/logger"
+	"github.com/armitageee/faceit-cli/internal/telemetry"
 
 	"github.com/joho/godotenv"
 )
@@ -17,9 +18,25 @@ import (
 var version = "dev"
 
 func main() {
+	// Suppress OpenTelemetry logs immediately to avoid stdout pollution
+	// This must be done before any OpenTelemetry initialization
+	os.Setenv("OTEL_LOG_LEVEL", "fatal")
+	
 	// Check for version flag
 	if len(os.Args) > 1 && (os.Args[1] == "-v" || os.Args[1] == "--version") {
 		fmt.Printf("faceit-cli version %s\n", version)
+		os.Exit(0)
+	}
+
+	// Check for init command
+	if len(os.Args) > 1 && os.Args[1] == "init" {
+		if err := config.CreateDefaultConfig(); err != nil {
+			fmt.Printf("Error creating config file: %v\n", err)
+			os.Exit(1)
+		}
+		configPath, _ := config.GetConfigPath()
+		fmt.Printf("✅ Created default config file at: %s\n", configPath)
+		fmt.Println("📝 Please edit the config file and set your FACEIT API key")
 		os.Exit(0)
 	}
 
@@ -56,7 +73,32 @@ func main() {
 
 	ctx := context.Background()
 	
-	application := app.NewApp(cfg, appLogger)
+	// Initialize telemetry
+	telemetryConfig := telemetry.Config{
+		ServiceName:    cfg.ServiceName,
+		ServiceVersion: version,
+		Environment:    cfg.Environment,
+		OTLPEndpoint:   cfg.OTLPEndpoint,
+		Enabled:        cfg.TelemetryEnabled,
+	}
+	
+	telemetryInstance, err := telemetry.New(ctx, telemetryConfig)
+	if err != nil {
+		appLogger.Error("Failed to initialize telemetry", map[string]interface{}{
+			"error": err.Error(),
+		})
+		// Continue without telemetry
+		telemetryInstance = &telemetry.Telemetry{}
+	}
+	defer func() {
+		if err := telemetryInstance.Shutdown(ctx); err != nil {
+			appLogger.Error("Failed to shutdown telemetry", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
+	}()
+	
+	application := app.NewApp(cfg, appLogger, telemetryInstance)
 	
 	if err := application.Run(ctx); err != nil {
 		appLogger.Error("Application failed", map[string]interface{}{

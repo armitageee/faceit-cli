@@ -3,8 +3,8 @@ package ui
 import (
 	"testing"
 
-	"faceit-cli/internal/config"
-	"faceit-cli/internal/logger"
+	"github.com/armitageee/faceit-cli/internal/config"
+	"github.com/armitageee/faceit-cli/internal/logger"
 )
 
 func TestProgressBar(t *testing.T) {

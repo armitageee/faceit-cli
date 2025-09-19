@@ -5,11 +5,19 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/armitageee/faceit-cli/internal/telemetry"
 )
+
+// createTestTelemetry creates a disabled telemetry instance for testing
+func createTestTelemetry() *telemetry.Telemetry {
+	return telemetry.NewDisabled()
+}
 
 func TestNewFaceitRepository(t *testing.T) {
 	apiKey := "test-api-key"
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	
 	if repo == nil {
 		t.Fatal("Expected repository to be created, got nil")
@@ -33,7 +41,8 @@ func TestGetPlayerByNickname(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -72,7 +81,8 @@ func TestGetPlayerByNickname_InvalidPlayer(t *testing.T) {
 		t.Skip("FACEIT_API_KEY not set, skipping integration test")
 	}
 
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -95,7 +105,8 @@ func TestGetPlayerStats(t *testing.T) {
 		t.Skip("FACEIT_API_KEY not set, skipping integration test")
 	}
 
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -127,7 +138,8 @@ func TestGetPlayerRecentMatches(t *testing.T) {
 		t.Skip("FACEIT_API_KEY not set, skipping integration test")
 	}
 
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -169,7 +181,8 @@ func TestGetPlayerRecentMatches_Pagination(t *testing.T) {
 		t.Skip("FACEIT_API_KEY not set, skipping integration test")
 	}
 
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -206,7 +219,8 @@ func TestGetPlayerRecentMatches_InvalidPlayer(t *testing.T) {
 		t.Skip("FACEIT_API_KEY not set, skipping integration test")
 	}
 
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -228,7 +242,8 @@ func TestGetPlayerRecentMatches_InvalidGame(t *testing.T) {
 		t.Skip("FACEIT_API_KEY not set, skipping integration test")
 	}
 
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -256,7 +271,8 @@ func TestGetPlayerRecentMatches_EdgeCases(t *testing.T) {
 		t.Skip("FACEIT_API_KEY not set, skipping integration test")
 	}
 
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -299,7 +315,8 @@ func BenchmarkGetPlayerByNickname(b *testing.B) {
 		b.Skip("Skipping benchmark in short mode")
 	}
 
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	ctx := context.Background()
 
 	b.ResetTimer()
@@ -322,7 +339,8 @@ func BenchmarkGetPlayerRecentMatches(b *testing.B) {
 		b.Skip("Skipping benchmark in short mode")
 	}
 
-	repo := NewFaceitRepository(apiKey)
+	telemetry := createTestTelemetry()
+	repo := NewFaceitRepository(apiKey, telemetry)
 	ctx := context.Background()
 
 	// Get player ID once

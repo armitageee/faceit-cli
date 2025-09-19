@@ -40,3 +40,6 @@ Thumbs.db
 # Coverage
 coverage.out
 coverage.html
+
+/bazel-*
+WARP.md

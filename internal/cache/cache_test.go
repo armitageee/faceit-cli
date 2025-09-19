@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"faceit-cli/internal/entity"
+	"github.com/armitageee/faceit-cli/internal/entity"
 )
 
 func TestCacheBasicOperations(t *testing.T) {

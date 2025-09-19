@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"faceit-cli/internal/entity"
+	"github.com/armitageee/faceit-cli/internal/entity"
 )
 
 // CacheEntry represents a cached item with expiration

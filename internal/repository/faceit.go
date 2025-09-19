@@ -9,11 +9,15 @@ import (
 
 	"sort"
 
-	"faceit-cli/internal/entity"
-	"faceit-cli/internal/logger"
+	"github.com/armitageee/faceit-cli/internal/entity"
+	"github.com/armitageee/faceit-cli/internal/logger"
+	"github.com/armitageee/faceit-cli/internal/telemetry"
 
 	"github.com/antihax/optional"
 	faceit "github.com/mconnat/go-faceit"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // FaceitRepository defines the interface for FACEIT API operations
@@ -28,16 +32,17 @@ type FaceitRepository interface {
 // delegates calls to the generated FACEIT API client. It stores the API
 // key and applies it to each request via the context.
 type faceitRepository struct {
-	client *faceit.APIClient
-	apiKey string
-	logger *logger.Logger
+	client     *faceit.APIClient
+	apiKey     string
+	logger     *logger.Logger
+	telemetry  *telemetry.Telemetry
 }
 
 // NewFaceitRepository constructs a repository backed by the FACEIT API.
 // It takes an API key which will be sent with each request. The
 // underlying API client is created with default configuration –
 // including the base URL "https://open.faceit.com/data/v4".
-func NewFaceitRepository(apiKey string) FaceitRepository {
+func NewFaceitRepository(apiKey string, telemetryInstance *telemetry.Telemetry) FaceitRepository {
 	cfg := faceit.NewConfiguration()
 	client := faceit.NewAPIClient(cfg)
 	
@@ -52,9 +57,10 @@ func NewFaceitRepository(apiKey string) FaceitRepository {
 	appLogger, _ := logger.New(loggerConfig)
 	
 	return &faceitRepository{
-		client: client,
-		apiKey: apiKey,
-		logger: appLogger,
+		client:    client,
+		apiKey:    apiKey,
+		logger:    appLogger,
+		telemetry: telemetryInstance,
 	}
 }
 
@@ -70,6 +76,17 @@ func (r *faceitRepository) contextWithAPIKey(ctx context.Context) context.Contex
 // API calls: first a search to find the player ID and then a fetch of
 // the player's profile.
 func (r *faceitRepository) GetPlayerByNickname(ctx context.Context, nickname string) (*entity.PlayerProfile, error) {
+	// Start tracing span if telemetry is enabled
+	var span trace.Span
+	if r.telemetry != nil {
+		ctx, span = r.telemetry.StartSpan(ctx, "repository.get_player_by_nickname")
+		defer span.End()
+		
+		r.setSpanAttributes(span,
+			attribute.String("player.nickname", nickname),
+		)
+	}
+
 	r.logger.Debug("Starting GetPlayerByNickname", map[string]interface{}{
 		"nickname": nickname,
 	})
@@ -151,6 +168,12 @@ func (r *faceitRepository) GetPlayerByNickname(ctx context.Context, nickname str
 		}
 	}
 
+	// Add telemetry attributes if enabled
+	r.setSpanSuccessWithAttributes(span, "Player found successfully",
+		attribute.String("player.id", profile.ID),
+		attribute.String("player.country", profile.Country),
+	)
+
 	return profile, nil
 }
 
@@ -160,6 +183,18 @@ func (r *faceitRepository) GetPlayerByNickname(ctx context.Context, nickname str
 // lifetime statistics. This implementation uses the latter via
 // GetPlayerStats_1.
 func (r *faceitRepository) GetPlayerStats(ctx context.Context, playerID, gameID string) (*entity.PlayerStats, error) {
+	// Start tracing span if telemetry is enabled
+	var span trace.Span
+	if r.telemetry != nil {
+		ctx, span = r.telemetry.StartSpan(ctx, "repository.get_player_stats")
+		defer span.End()
+		
+		r.setSpanAttributes(span,
+			attribute.String("player.id", playerID),
+			attribute.String("game.id", gameID),
+		)
+	}
+
 	if playerID == "" {
 		return nil, fmt.Errorf("playerID must not be empty")
 	}
@@ -170,6 +205,7 @@ func (r *faceitRepository) GetPlayerStats(ctx context.Context, playerID, gameID 
 	ctx = r.contextWithAPIKey(ctx)
 	stats, _, err := r.client.PlayersApi.GetPlayerStats_1(ctx, playerID, gameID)
 	if err != nil {
+		r.setSpanError(span, err)
 		return nil, fmt.Errorf("get player stats: %w", err)
 	}
 
@@ -179,6 +215,12 @@ func (r *faceitRepository) GetPlayerStats(ctx context.Context, playerID, gameID 
 		Lifetime: stats.Lifetime,
 		Segments: stats.Segments,
 	}
+
+	// Add telemetry attributes if enabled
+	r.setSpanSuccessWithAttributes(span, "Player stats retrieved successfully",
+		attribute.String("stats.game_id", result.GameID),
+		attribute.String("stats.player_id", result.PlayerID),
+	)
 
 	return result, nil
 }
@@ -190,6 +232,19 @@ func (r *faceitRepository) GetPlayerStats(ctx context.Context, playerID, gameID 
 // matches is used.  Any errors encountered during history or stats
 // retrieval are returned immediately.
 func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID string, gameID string, limit int) ([]entity.PlayerMatchSummary, error) {
+	// Start tracing span if telemetry is enabled
+	var span trace.Span
+	if r.telemetry != nil {
+		ctx, span = r.telemetry.StartSpan(ctx, "repository.get_player_recent_matches")
+		defer span.End()
+		
+		r.setSpanAttributes(span,
+			attribute.String("player.id", playerID),
+			attribute.String("game.id", gameID),
+			attribute.Int("matches.limit", limit),
+		)
+	}
+
 	if playerID == "" {
 		return nil, fmt.Errorf("playerID must not be empty")
 	}
@@ -242,6 +297,11 @@ func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID 
 		// Move to next batch
 		offset += len(history.Items)
 	}
+
+	// Add telemetry attributes if enabled
+	r.setSpanSuccessWithAttributes(span, "Recent matches retrieved successfully",
+		attribute.Int("matches.count", len(allMatches)),
+	)
 
 	// Debug logging (can be removed in production)
 	// fmt.Printf("DEBUG: Requested limit: %d, Got matches: %d\n", limit, len(allMatches))
@@ -478,6 +538,17 @@ func (r *faceitRepository) processMatches(items []faceit.MatchHistory, playerID 
 
 // GetMatchStats retrieves detailed match statistics by match ID
 func (r *faceitRepository) GetMatchStats(ctx context.Context, matchID string) (*entity.MatchStats, error) {
+	// Start tracing span if telemetry is enabled
+	var span trace.Span
+	if r.telemetry != nil {
+		ctx, span = r.telemetry.StartSpan(ctx, "repository.get_match_stats")
+		defer span.End()
+		
+		r.setSpanAttributes(span,
+			attribute.String("match.id", matchID),
+		)
+	}
+
 	r.logger.Debug("Starting GetMatchStats", map[string]interface{}{
 		"match_id": matchID,
 	})
@@ -751,6 +822,39 @@ func (r *faceitRepository) GetMatchStats(ctx context.Context, matchID string) (*
 		}
 	}
 
+	// Add telemetry attributes if enabled
+	r.setSpanSuccessWithAttributes(span, "Match stats retrieved successfully",
+		attribute.String("match.map", matchStats.Map),
+		attribute.String("match.score", matchStats.Score),
+		attribute.String("match.result", matchStats.Result),
+	)
+
 	return matchStats, nil
+}
+
+// Helper methods for telemetry operations
+
+// setSpanAttributes sets attributes on a span if telemetry is enabled
+func (r *faceitRepository) setSpanAttributes(span trace.Span, attrs ...attribute.KeyValue) {
+	if r.telemetry != nil && span != nil {
+		span.SetAttributes(attrs...)
+	}
+}
+
+
+// setSpanError sets error status on a span if telemetry is enabled
+func (r *faceitRepository) setSpanError(span trace.Span, err error) {
+	if r.telemetry != nil && span != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+}
+
+// setSpanSuccessWithAttributes sets attributes and success status on a span if telemetry is enabled
+func (r *faceitRepository) setSpanSuccessWithAttributes(span trace.Span, message string, attrs ...attribute.KeyValue) {
+	if r.telemetry != nil && span != nil {
+		span.SetAttributes(attrs...)
+		span.SetStatus(codes.Ok, message)
+	}
 }
 
