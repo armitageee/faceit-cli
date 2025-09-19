@@ -6,6 +6,7 @@ import (
 
 	"faceit-cli/internal/config"
 	"faceit-cli/internal/logger"
+	"faceit-cli/internal/telemetry"
 )
 
 // createTestLogger creates a test logger
@@ -21,12 +22,34 @@ func createTestLogger() *logger.Logger {
 	return logger
 }
 
+// createTestTelemetry creates a test telemetry instance (disabled)
+func createTestTelemetry() *telemetry.Telemetry {
+	// Create a proper telemetry instance but with tracing disabled
+	ctx := context.Background()
+	config := telemetry.Config{
+		ServiceName:    "test-service",
+		ServiceVersion: "test",
+		Environment:    "test",
+		Enabled:        false, // Disabled for tests
+	}
+	
+	telemetryInstance, err := telemetry.New(ctx, config)
+	if err != nil {
+		// If telemetry creation fails, return a nil instance
+		// The app should handle nil telemetry gracefully
+		return nil
+	}
+	
+	return telemetryInstance
+}
+
 func TestNewApp(t *testing.T) {
 	tests := []struct {
-		name     string
-		config   *config.Config
-		logger   *logger.Logger
-		wantErr  bool
+		name      string
+		config    *config.Config
+		logger    *logger.Logger
+		telemetry *telemetry.Telemetry
+		wantErr   bool
 	}{
 		{
 			name: "valid config with cache disabled",
@@ -34,8 +57,9 @@ func TestNewApp(t *testing.T) {
 				FaceitAPIKey: "test-api-key",
 				CacheEnabled: false,
 			},
-			logger:  createTestLogger(),
-			wantErr: false,
+			logger:    createTestLogger(),
+			telemetry: createTestTelemetry(),
+			wantErr:   false,
 		},
 		{
 			name: "valid config with cache enabled",
@@ -44,14 +68,16 @@ func TestNewApp(t *testing.T) {
 				CacheEnabled: true,
 				CacheTTL:     30,
 			},
-			logger:  createTestLogger(),
-			wantErr: false,
+			logger:    createTestLogger(),
+			telemetry: createTestTelemetry(),
+			wantErr:   false,
 		},
 		{
-			name: "nil config",
-			config: nil,
-			logger:  createTestLogger(),
-			wantErr: true,
+			name:      "nil config",
+			config:    nil,
+			logger:    createTestLogger(),
+			telemetry: createTestTelemetry(),
+			wantErr:   true,
 		},
 	}
 
@@ -63,7 +89,7 @@ func TestNewApp(t *testing.T) {
 				}
 			}()
 
-			app := NewApp(tt.config, tt.logger)
+			app := NewApp(tt.config, tt.logger, tt.telemetry)
 			
 			if tt.wantErr {
 				if app != nil {
@@ -83,6 +109,10 @@ func TestNewApp(t *testing.T) {
 
 			if app.logger != tt.logger {
 				t.Errorf("NewApp() logger = %v, want %v", app.logger, tt.logger)
+			}
+
+			if app.telemetry != tt.telemetry {
+				t.Errorf("NewApp() telemetry = %v, want %v", app.telemetry, tt.telemetry)
 			}
 
 			if app.repo == nil {
@@ -117,7 +147,7 @@ func TestApp_Run(t *testing.T) {
 	}
 	appLogger := createTestLogger()
 	
-	app := NewApp(config, appLogger)
+	app := NewApp(config, appLogger, createTestTelemetry())
 	
 	// Test with a cancelled context to avoid hanging
 	ctx, cancel := context.WithCancel(context.Background())
@@ -142,7 +172,7 @@ func TestApp_Fields(t *testing.T) {
 	}
 	appLogger := createTestLogger()
 	
-	app := NewApp(config, appLogger)
+	app := NewApp(config, appLogger, createTestTelemetry())
 	
 	// Test that all fields are properly set
 	if app.config == nil {
@@ -155,6 +185,10 @@ func TestApp_Fields(t *testing.T) {
 	
 	if app.logger == nil {
 		t.Error("App.logger is nil")
+	}
+	
+	if app.telemetry == nil {
+		t.Error("App.telemetry is nil")
 	}
 	
 	// Test config values
@@ -179,10 +213,11 @@ func BenchmarkNewApp(b *testing.B) {
 		CacheTTL:     30,
 	}
 	appLogger := createTestLogger()
+	telemetry := createTestTelemetry()
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = NewApp(config, appLogger)
+		_ = NewApp(config, appLogger, telemetry)
 	}
 }
 
@@ -192,9 +227,10 @@ func BenchmarkNewApp_NoCache(b *testing.B) {
 		CacheEnabled: false,
 	}
 	appLogger := createTestLogger()
+	telemetry := createTestTelemetry()
 	
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = NewApp(config, appLogger)
+		_ = NewApp(config, appLogger, telemetry)
 	}
 }

@@ -22,6 +22,12 @@ type Config struct {
 	CacheEnabled      bool
 	CacheTTL          int // Cache TTL in minutes
 	ComparisonMatches int // Number of matches to use for comparison
+	// Telemetry configuration
+	TelemetryEnabled   bool
+	OTLPEndpoint       string
+	ServiceName        string
+	ServiceVersion     string
+	Environment        string
 }
 
 // Load loads configuration from environment variables
@@ -84,6 +90,26 @@ func Load() (*Config, error) {
 		}
 	}
 
+	// Parse telemetry settings
+	telemetryEnabled := os.Getenv("TELEMETRY_ENABLED") == "true"
+	otlpEndpoint := os.Getenv("OTLP_ENDPOINT")
+	if otlpEndpoint == "" {
+		otlpEndpoint = "http://localhost:4318/v1/traces"
+	}
+	// Zipkin endpoint is handled by OTLP Collector
+	serviceName := os.Getenv("SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = "faceit-cli"
+	}
+	serviceVersion := os.Getenv("SERVICE_VERSION")
+	if serviceVersion == "" {
+		serviceVersion = "dev"
+	}
+	environment := os.Getenv("ENVIRONMENT")
+	if environment == "" {
+		environment = "development"
+	}
+
 	return &Config{
 		FaceitAPIKey:      apiKey,
 		DefaultPlayer:     defaultPlayer,
@@ -98,5 +124,10 @@ func Load() (*Config, error) {
 		CacheEnabled:      cacheEnabled,
 		CacheTTL:          cacheTTL,
 		ComparisonMatches: comparisonMatches,
+		TelemetryEnabled:  telemetryEnabled,
+		OTLPEndpoint:      otlpEndpoint,
+		ServiceName:       serviceName,
+		ServiceVersion:    serviceVersion,
+		Environment:       environment,
 	}, nil
 }

@@ -9,6 +9,7 @@ import (
 	"faceit-cli/internal/app"
 	"faceit-cli/internal/config"
 	"faceit-cli/internal/logger"
+	"faceit-cli/internal/telemetry"
 
 	"github.com/joho/godotenv"
 )
@@ -17,6 +18,10 @@ import (
 var version = "dev"
 
 func main() {
+	// Suppress OpenTelemetry logs immediately to avoid stdout pollution
+	// This must be done before any OpenTelemetry initialization
+	os.Setenv("OTEL_LOG_LEVEL", "fatal")
+	
 	// Check for version flag
 	if len(os.Args) > 1 && (os.Args[1] == "-v" || os.Args[1] == "--version") {
 		fmt.Printf("faceit-cli version %s\n", version)
@@ -56,7 +61,26 @@ func main() {
 
 	ctx := context.Background()
 	
-	application := app.NewApp(cfg, appLogger)
+	// Initialize telemetry
+	telemetryConfig := telemetry.Config{
+		ServiceName:    cfg.ServiceName,
+		ServiceVersion: version,
+		Environment:    cfg.Environment,
+		OTLPEndpoint:   cfg.OTLPEndpoint,
+		Enabled:        cfg.TelemetryEnabled,
+	}
+	
+	telemetryInstance, err := telemetry.New(ctx, telemetryConfig)
+	if err != nil {
+		appLogger.Error("Failed to initialize telemetry", map[string]interface{}{
+			"error": err.Error(),
+		})
+		// Continue without telemetry
+		telemetryInstance = &telemetry.Telemetry{}
+	}
+	defer telemetryInstance.Shutdown(ctx)
+	
+	application := app.NewApp(cfg, appLogger, telemetryInstance)
 	
 	if err := application.Run(ctx); err != nil {
 		appLogger.Error("Application failed", map[string]interface{}{
