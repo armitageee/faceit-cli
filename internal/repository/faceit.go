@@ -82,7 +82,7 @@ func (r *faceitRepository) GetPlayerByNickname(ctx context.Context, nickname str
 		ctx, span = r.telemetry.StartSpan(ctx, "repository.get_player_by_nickname")
 		defer span.End()
 		
-		span.SetAttributes(
+		r.setSpanAttributes(span,
 			attribute.String("player.nickname", nickname),
 		)
 	}
@@ -189,7 +189,7 @@ func (r *faceitRepository) GetPlayerStats(ctx context.Context, playerID, gameID 
 		ctx, span = r.telemetry.StartSpan(ctx, "repository.get_player_stats")
 		defer span.End()
 		
-		span.SetAttributes(
+		r.setSpanAttributes(span,
 			attribute.String("player.id", playerID),
 			attribute.String("game.id", gameID),
 		)
@@ -238,7 +238,7 @@ func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID 
 		ctx, span = r.telemetry.StartSpan(ctx, "repository.get_player_recent_matches")
 		defer span.End()
 		
-		span.SetAttributes(
+		r.setSpanAttributes(span,
 			attribute.String("player.id", playerID),
 			attribute.String("game.id", gameID),
 			attribute.Int("matches.limit", limit),
@@ -544,7 +544,7 @@ func (r *faceitRepository) GetMatchStats(ctx context.Context, matchID string) (*
 		ctx, span = r.telemetry.StartSpan(ctx, "repository.get_match_stats")
 		defer span.End()
 		
-		span.SetAttributes(
+		r.setSpanAttributes(span,
 			attribute.String("match.id", matchID),
 		)
 	}
@@ -841,12 +841,6 @@ func (r *faceitRepository) setSpanAttributes(span trace.Span, attrs ...attribute
 	}
 }
 
-// setSpanSuccess sets success status on a span if telemetry is enabled
-func (r *faceitRepository) setSpanSuccess(span trace.Span, message string) {
-	if r.telemetry != nil && span != nil {
-		span.SetStatus(codes.Ok, message)
-	}
-}
 
 // setSpanError sets error status on a span if telemetry is enabled
 func (r *faceitRepository) setSpanError(span trace.Span, err error) {
