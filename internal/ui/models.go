@@ -1,10 +1,10 @@
 package ui
 
 import (
-	"faceit-cli/internal/config"
-	"faceit-cli/internal/entity"
-	"faceit-cli/internal/logger"
-	"faceit-cli/internal/repository"
+	"github.com/armitageee/faceit-cli/internal/config"
+	"github.com/armitageee/faceit-cli/internal/entity"
+	"github.com/armitageee/faceit-cli/internal/logger"
+	"github.com/armitageee/faceit-cli/internal/repository"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"

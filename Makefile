@@ -196,6 +196,18 @@ run-optimized:
 	@echo "Running with all optimizations..."
 	CACHE_ENABLED=true CACHE_TTL=30 MATCHES_PER_PAGE=10 MAX_MATCHES_TO_LOAD=50 go run main.go
 
+# Initialize configuration
+.PHONY: init
+init:
+	@echo "Initializing configuration..."
+	@go run main.go init
+
+# Install via go install
+.PHONY: install
+install:
+	@echo "Installing faceit-cli via go install..."
+	@go install github.com/armitageee/faceit-cli@latest
+
 # Help
 .PHONY: help
 help:
@@ -213,6 +225,8 @@ help:
 	@echo "  clean         - Clean build artifacts"
 	@echo "  deps          - Install dependencies"
 	@echo "  install-tools - Install development tools"
+	@echo "  init          - Initialize configuration file"
+	@echo "  install       - Install via go install"
 	@echo "  docker-build  - Build Docker image"
 	@echo "  docker-run    - Run in Docker with .env file"
 	@echo "  run           - Build and run the application"

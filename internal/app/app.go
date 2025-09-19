@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"faceit-cli/internal/cache"
-	"faceit-cli/internal/config"
-	"faceit-cli/internal/logger"
-	"faceit-cli/internal/repository"
-	"faceit-cli/internal/telemetry"
-	"faceit-cli/internal/ui"
+	"github.com/armitageee/faceit-cli/internal/cache"
+	"github.com/armitageee/faceit-cli/internal/config"
+	"github.com/armitageee/faceit-cli/internal/logger"
+	"github.com/armitageee/faceit-cli/internal/repository"
+	"github.com/armitageee/faceit-cli/internal/telemetry"
+	"github.com/armitageee/faceit-cli/internal/ui"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"go.opentelemetry.io/otel/attribute"

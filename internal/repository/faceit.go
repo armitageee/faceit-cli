@@ -9,9 +9,9 @@ import (
 
 	"sort"
 
-	"faceit-cli/internal/entity"
-	"faceit-cli/internal/logger"
-	"faceit-cli/internal/telemetry"
+	"github.com/armitageee/faceit-cli/internal/entity"
+	"github.com/armitageee/faceit-cli/internal/logger"
+	"github.com/armitageee/faceit-cli/internal/telemetry"
 
 	"github.com/antihax/optional"
 	faceit "github.com/mconnat/go-faceit"

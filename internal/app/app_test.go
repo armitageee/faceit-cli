@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"faceit-cli/internal/config"
-	"faceit-cli/internal/logger"
-	"faceit-cli/internal/telemetry"
+	"github.com/armitageee/faceit-cli/internal/config"
+	"github.com/armitageee/faceit-cli/internal/logger"
+	"github.com/armitageee/faceit-cli/internal/telemetry"
 )
 
 // createTestLogger creates a test logger

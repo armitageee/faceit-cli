@@ -22,11 +22,27 @@ A beautiful terminal user interface (TUI) for viewing FACEIT player profiles and
 
 ## Quick Start
 
-### Option 1: Pre-built Binaries
+### Option 1: Go Install (Recommended)
+
+```bash
+# Install the latest version
+go install github.com/armitageee/faceit-cli@latest
+
+# Initialize configuration
+faceit-cli init
+
+# Edit the config file and add your API key
+# ~/.config/faceit-cli/config.yml
+
+# Run the application
+faceit-cli
+```
+
+### Option 2: Pre-built Binaries
 
 Download the latest release from the [Releases page](https://github.com/armitageee/faceit-cli/releases) and extract the binary for your platform.
 
-### Option 2: Docker
+### Option 3: Docker
 
 ```bash
 # Clone the repository
@@ -80,7 +96,45 @@ make run-production
 
 ## Configuration
 
-Create a `.env` file in the project root:
+### Configuration Priority
+
+The application uses a flexible configuration system with the following priority order:
+
+1. **Environment Variables** (highest priority)
+2. **YAML Configuration** (`~/.config/faceit-cli/config.yml`)
+3. **Default Values** (lowest priority)
+
+### YAML Configuration
+
+The application supports YAML configuration files for better user experience:
+
+```bash
+# Initialize default config
+faceit-cli init
+
+# Edit the config file
+# ~/.config/faceit-cli/config.yml
+```
+
+### Environment Variables Override
+
+Environment variables always take priority over YAML configuration. This is useful for:
+- Production deployments
+- CI/CD pipelines
+- Temporary overrides
+- Security-sensitive values
+
+**Example:**
+```bash
+# YAML config has: log_level: "info", cache_enabled: true
+# Environment variable overrides it:
+export LOG_LEVEL="debug"
+export CACHE_ENABLED="false"
+
+# Result: log_level="debug", cache_enabled=false
+```
+
+You can use environment variables or a `.env` file in the project root:
 
 ```bash
 # Required

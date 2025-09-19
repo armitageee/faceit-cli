@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"faceit-cli/internal/entity"
+	"github.com/armitageee/faceit-cli/internal/entity"
 	"fmt"
 	"strconv"
 	"strings"

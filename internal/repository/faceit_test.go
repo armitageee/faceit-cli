@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"faceit-cli/internal/telemetry"
+	"github.com/armitageee/faceit-cli/internal/telemetry"
 )
 
 func TestNewFaceitRepository(t *testing.T) {

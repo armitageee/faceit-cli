@@ -1,0 +1,35 @@
+# FACEIT CLI Configuration
+# Copy this file to ~/.config/faceit-cli/config.yml and configure your settings
+
+# Required: Your FACEIT API key
+api_key: "your_faceit_api_key_here"
+
+# Optional: Default player to load on startup
+default_player: ""
+
+# Logging settings
+log_level: "info"  # debug, info, warn, error
+log_to_stdout: false
+production_mode: false
+
+# Pagination settings
+matches_per_page: 10
+max_matches_to_load: 100
+comparison_matches: 20
+
+# Caching settings
+cache_enabled: true
+cache_ttl: 30  # minutes
+
+# Kafka integration (optional)
+kafka_enabled: false
+kafka_brokers: "localhost:9092"
+kafka_topic: "faceit-cli-logs"
+
+# Telemetry settings (optional)
+telemetry_enabled: false
+otlp_endpoint: "localhost:4317"
+service_name: "faceit-cli"
+service_version: "1.0.0"
+environment: "development"
+otel_log_level: "fatal"
