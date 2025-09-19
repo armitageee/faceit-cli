@@ -90,7 +90,13 @@ func main() {
 		// Continue without telemetry
 		telemetryInstance = &telemetry.Telemetry{}
 	}
-	defer telemetryInstance.Shutdown(ctx)
+	defer func() {
+		if err := telemetryInstance.Shutdown(ctx); err != nil {
+			appLogger.Error("Failed to shutdown telemetry", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
+	}()
 	
 	application := app.NewApp(cfg, appLogger, telemetryInstance)
 	

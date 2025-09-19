@@ -74,7 +74,7 @@ func (a *App) runInternal(ctx context.Context) error {
 		a.logger.Info("Starting TUI program")
 		
 		// Create a span for TUI execution
-		ctx, tuiSpan := a.telemetry.StartSpan(ctx, "app.tui_execution")
+		_, tuiSpan := a.telemetry.StartSpan(ctx, "app.tui_execution")
 		defer tuiSpan.End()
 		
 		p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())

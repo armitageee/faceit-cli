@@ -13,6 +13,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // Config holds telemetry configuration
@@ -31,12 +32,19 @@ type Telemetry struct {
 	shutdown       func(context.Context) error
 }
 
+// NewDisabled creates a disabled telemetry instance for testing
+func NewDisabled() *Telemetry {
+	return &Telemetry{
+		tracer: noop.NewTracerProvider().Tracer("faceit-cli-disabled"),
+	}
+}
+
 // New creates a new telemetry instance
 func New(ctx context.Context, cfg Config) (*Telemetry, error) {
 	if !cfg.Enabled {
 		// Return a no-op telemetry instance
 		return &Telemetry{
-			tracer: trace.NewNoopTracerProvider().Tracer("faceit-cli"),
+			tracer: noop.NewTracerProvider().Tracer("faceit-cli"),
 		}, nil
 	}
 
