@@ -110,7 +110,7 @@ func loadFromEnv() (*Config, error) {
 	telemetryEnabled := os.Getenv("TELEMETRY_ENABLED") == "true"
 	otlpEndpoint := os.Getenv("OTLP_ENDPOINT")
 	if otlpEndpoint == "" {
-		otlpEndpoint = "http://localhost:4318/v1/traces"
+		otlpEndpoint = "localhost:4317"
 	}
 	// Zipkin endpoint is handled by OTLP Collector
 	serviceName := os.Getenv("SERVICE_NAME")

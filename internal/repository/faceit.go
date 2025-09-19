@@ -169,13 +169,10 @@ func (r *faceitRepository) GetPlayerByNickname(ctx context.Context, nickname str
 	}
 
 	// Add telemetry attributes if enabled
-	if r.telemetry != nil && span != nil {
-		span.SetAttributes(
-			attribute.String("player.id", profile.ID),
-			attribute.String("player.country", profile.Country),
-		)
-		span.SetStatus(codes.Ok, "Player found successfully")
-	}
+	r.setSpanSuccessWithAttributes(span, "Player found successfully",
+		attribute.String("player.id", profile.ID),
+		attribute.String("player.country", profile.Country),
+	)
 
 	return profile, nil
 }
@@ -208,10 +205,7 @@ func (r *faceitRepository) GetPlayerStats(ctx context.Context, playerID, gameID 
 	ctx = r.contextWithAPIKey(ctx)
 	stats, _, err := r.client.PlayersApi.GetPlayerStats_1(ctx, playerID, gameID)
 	if err != nil {
-		if r.telemetry != nil && span != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, err.Error())
-		}
+		r.setSpanError(span, err)
 		return nil, fmt.Errorf("get player stats: %w", err)
 	}
 
@@ -223,13 +217,10 @@ func (r *faceitRepository) GetPlayerStats(ctx context.Context, playerID, gameID 
 	}
 
 	// Add telemetry attributes if enabled
-	if r.telemetry != nil && span != nil {
-		span.SetAttributes(
-			attribute.String("stats.game_id", result.GameID),
-			attribute.String("stats.player_id", result.PlayerID),
-		)
-		span.SetStatus(codes.Ok, "Player stats retrieved successfully")
-	}
+	r.setSpanSuccessWithAttributes(span, "Player stats retrieved successfully",
+		attribute.String("stats.game_id", result.GameID),
+		attribute.String("stats.player_id", result.PlayerID),
+	)
 
 	return result, nil
 }
@@ -308,12 +299,9 @@ func (r *faceitRepository) GetPlayerRecentMatches(ctx context.Context, playerID 
 	}
 
 	// Add telemetry attributes if enabled
-	if r.telemetry != nil && span != nil {
-		span.SetAttributes(
-			attribute.Int("matches.count", len(allMatches)),
-		)
-		span.SetStatus(codes.Ok, "Recent matches retrieved successfully")
-	}
+	r.setSpanSuccessWithAttributes(span, "Recent matches retrieved successfully",
+		attribute.Int("matches.count", len(allMatches)),
+	)
 
 	// Debug logging (can be removed in production)
 	// fmt.Printf("DEBUG: Requested limit: %d, Got matches: %d\n", limit, len(allMatches))
@@ -835,15 +823,44 @@ func (r *faceitRepository) GetMatchStats(ctx context.Context, matchID string) (*
 	}
 
 	// Add telemetry attributes if enabled
-	if r.telemetry != nil && span != nil {
-		span.SetAttributes(
-			attribute.String("match.map", matchStats.Map),
-			attribute.String("match.score", matchStats.Score),
-			attribute.String("match.result", matchStats.Result),
-		)
-		span.SetStatus(codes.Ok, "Match stats retrieved successfully")
-	}
+	r.setSpanSuccessWithAttributes(span, "Match stats retrieved successfully",
+		attribute.String("match.map", matchStats.Map),
+		attribute.String("match.score", matchStats.Score),
+		attribute.String("match.result", matchStats.Result),
+	)
 
 	return matchStats, nil
+}
+
+// Helper methods for telemetry operations
+
+// setSpanAttributes sets attributes on a span if telemetry is enabled
+func (r *faceitRepository) setSpanAttributes(span trace.Span, attrs ...attribute.KeyValue) {
+	if r.telemetry != nil && span != nil {
+		span.SetAttributes(attrs...)
+	}
+}
+
+// setSpanSuccess sets success status on a span if telemetry is enabled
+func (r *faceitRepository) setSpanSuccess(span trace.Span, message string) {
+	if r.telemetry != nil && span != nil {
+		span.SetStatus(codes.Ok, message)
+	}
+}
+
+// setSpanError sets error status on a span if telemetry is enabled
+func (r *faceitRepository) setSpanError(span trace.Span, err error) {
+	if r.telemetry != nil && span != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+}
+
+// setSpanSuccessWithAttributes sets attributes and success status on a span if telemetry is enabled
+func (r *faceitRepository) setSpanSuccessWithAttributes(span trace.Span, message string, attrs ...attribute.KeyValue) {
+	if r.telemetry != nil && span != nil {
+		span.SetAttributes(attrs...)
+		span.SetStatus(codes.Ok, message)
+	}
 }
 
