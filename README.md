@@ -355,7 +355,7 @@ make docker-run
 - **Automatic publishing** to GitHub Container Registry
 - **Environment file support** for easy configuration
 
-For detailed Docker documentation, see [DOCKER.md](DOCKER.md).
+For detailed Docker documentation, see [DOCKER.md](docs/DOCKER.md).
 
 ## License
 
